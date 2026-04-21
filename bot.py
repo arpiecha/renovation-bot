@@ -117,6 +117,7 @@ def ensure_sheet_headers():
 async def analyze_receipt(image_bytes: bytes, mime_type: str) -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+    logger.info(f"Sending image to Claude, size: {len(image_bytes)} bytes, mime: {mime_type}")
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
@@ -129,7 +130,9 @@ async def analyze_receipt(image_bytes: bytes, mime_type: str) -> dict:
             ]
         }]
     )
-    text = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+    raw = message.content[0].text
+    logger.info(f"Claude response: {raw}")
+    text = raw.strip().replace("```json", "").replace("```", "").strip()
     return json.loads(text)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -189,9 +192,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except Exception as e:
-        logger.error(f"Error handling photo: {e}")
+        logger.error(f"Error handling photo: {type(e).__name__}: {e}", exc_info=True)
         await update.message.reply_text(
-            "❌ Sorry, I couldn't read that receipt. Try a clearer photo with good lighting."
+            f"❌ Debug error: {type(e).__name__}: {str(e)[:300]}"
         )
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
