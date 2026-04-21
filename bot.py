@@ -13,7 +13,8 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
-import gspread
+import cloudinary
+import cloudinary.uploader
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -21,7 +22,16 @@ logger = logging.getLogger(__name__)
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 GOOGLE_CREDS_JSON = os.environ["GOOGLE_CREDS_JSON"]
-GOOGLE_DRIVE_FOLDER_ID = os.environ["GOOGLE_DRIVE_FOLDER_ID"]
+CLOUDINARY_CLOUD_NAME = os.environ["CLOUDINARY_CLOUD_NAME"]
+CLOUDINARY_API_KEY = os.environ["CLOUDINARY_API_KEY"]
+CLOUDINARY_API_SECRET = os.environ["CLOUDINARY_API_SECRET"]
+
+cloudinary.config(
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
+    secure=True
+)
 GOOGLE_SHEET_ID = os.environ["GOOGLE_SHEET_ID"]
 
 CATEGORIES = ["Tiles / Flooring", "Plumbing", "Electrical", "Tools", "Labor", "Other"]
@@ -61,26 +71,18 @@ def get_google_services():
     sheets_service = build("sheets", "v4", credentials=creds)
     return drive_service, sheets_service
 
-def upload_to_drive(image_bytes: bytes, filename: str, mime_type: str) -> str:
+def upload_to_cloudinary(image_bytes: bytes, filename: str) -> str:
     try:
-        drive_service, _ = get_google_services()
-        file_metadata = {"name": filename}
-        if GOOGLE_DRIVE_FOLDER_ID:
-            file_metadata["parents"] = [GOOGLE_DRIVE_FOLDER_ID]
-        media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype=mime_type)
-        file = drive_service.files().create(
-            body=file_metadata, media_body=media, fields="id, webViewLink",
-            supportsAllDrives=True
-        ).execute()
-        drive_service.permissions().create(
-            fileId=file["id"],
-            body={"type": "anyone", "role": "reader"},
-            supportsAllDrives=True
-        ).execute()
-        return file.get("webViewLink", "")
+        result = cloudinary.uploader.upload(
+            image_bytes,
+            public_id=f"renovation_receipts/{filename}",
+            resource_type="image",
+            type="private"
+        )
+        return result.get("secure_url", "")
     except Exception as e:
-        logger.warning(f"Drive upload skipped: {e}")
-        return "Photo not saved to Drive"
+        logger.warning(f"Cloudinary upload failed: {e}")
+        return "Photo not saved"
 
 def append_to_sheet(receipt: dict, drive_link: str):
     _, sheets_service = get_google_services()
@@ -218,8 +220,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "confirm":
         await query.edit_message_text("💾 Saving receipt...")
         try:
-            filename = f"receipt_{receipt['store'].replace(' ', '_')}_{receipt['date']}_{int(datetime.now().timestamp())}.jpg"
-            drive_link = upload_to_drive(pending["image_bytes"], filename, pending["mime_type"])
+            filename = f"receipt_{receipt['store'].replace(' ', '_')}_{receipt['date']}_{int(datetime.now().timestamp())}"
+            drive_link = upload_to_cloudinary(pending["image_bytes"], filename)
             append_to_sheet(receipt, drive_link)
             sign = "-" if receipt["type"] == "return" else "+"
             await query.edit_message_text(
