@@ -62,19 +62,25 @@ def get_google_services():
     return drive_service, sheets_service
 
 def upload_to_drive(image_bytes: bytes, filename: str, mime_type: str) -> str:
-    drive_service, _ = get_google_services()
-    file_metadata = {"name": filename}
-    if GOOGLE_DRIVE_FOLDER_ID:
-        file_metadata["parents"] = [GOOGLE_DRIVE_FOLDER_ID]
-    media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype=mime_type)
-    file = drive_service.files().create(
-        body=file_metadata, media_body=media, fields="id, webViewLink"
-    ).execute()
-    drive_service.permissions().create(
-        fileId=file["id"],
-        body={"type": "anyone", "role": "reader"}
-    ).execute()
-    return file.get("webViewLink", "")
+    try:
+        drive_service, _ = get_google_services()
+        file_metadata = {"name": filename}
+        if GOOGLE_DRIVE_FOLDER_ID:
+            file_metadata["parents"] = [GOOGLE_DRIVE_FOLDER_ID]
+        media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype=mime_type)
+        file = drive_service.files().create(
+            body=file_metadata, media_body=media, fields="id, webViewLink",
+            supportsAllDrives=True
+        ).execute()
+        drive_service.permissions().create(
+            fileId=file["id"],
+            body={"type": "anyone", "role": "reader"},
+            supportsAllDrives=True
+        ).execute()
+        return file.get("webViewLink", "")
+    except Exception as e:
+        logger.warning(f"Drive upload skipped: {e}")
+        return "Photo not saved to Drive"
 
 def append_to_sheet(receipt: dict, drive_link: str):
     _, sheets_service = get_google_services()
