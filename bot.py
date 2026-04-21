@@ -63,10 +63,9 @@ def get_google_services():
 
 def upload_to_drive(image_bytes: bytes, filename: str, mime_type: str) -> str:
     drive_service, _ = get_google_services()
-    file_metadata = {
-        "name": filename,
-        "parents": [GOOGLE_DRIVE_FOLDER_ID]
-    }
+    file_metadata = {"name": filename}
+    if GOOGLE_DRIVE_FOLDER_ID:
+        file_metadata["parents"] = [GOOGLE_DRIVE_FOLDER_ID]
     media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype=mime_type)
     file = drive_service.files().create(
         body=file_metadata, media_body=media, fields="id, webViewLink"
