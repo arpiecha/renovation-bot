@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Renovation Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+    .header h1 { font-size: 22px; font-weight: 600; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .last-updated { font-size: 12px; color: #888; }
+    button { padding: 8px 16px; font-size: 13px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #1a1a1a; cursor: pointer; font-family: inherit; }
+    button:hover { background: #f5f5f3; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+    .metric { background: white; border-radius: 10px; padding: 1rem; border: 1px solid #eee; }
+    .metric-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .metric-value { font-size: 22px; font-weight: 600; }
+    .metric-value.green { color: #0F6E56; }
+    .metric-value.red { color: #993C1D; }
+    .section { background: white; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid #eee; }
+    .section-title { font-size: 15px; font-weight: 600; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    th { text-align: left; padding: 6px 8px; color: #888; font-weight: 400; border-bottom: 1px solid #eee; }
+    td { padding: 8px 8px; border-bottom: 1px solid #f0f0f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    .badge { font-size: 11px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
+    .badge-purchase { background: #E1F5EE; color: #0F6E56; }
+    .badge-return { background: #FAECE7; color: #993C1D; }
+    .amount-pos { color: #0F6E56; font-weight: 500; }
+    .amount-neg { color: #993C1D; font-weight: 500; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; font-size: 12px; color: #888; }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .loading { text-align: center; padding: 2rem; color: #888; font-size: 14px; }
+    .error { padding: 1rem; color: #993C1D; background: #FAECE7; border-radius: 8px; font-size: 14px; line-height: 1.6; }
+    .download-btn { width: 100%; margin-top: 1rem; padding: 10px; font-size: 14px; }
+    a { color: #185FA5; }
+    @media (max-width: 500px) {
+      .col-items, .col-photo { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Renovation tracker</h1>
+      <div class="header-right">
+        <span class="last-updated" id="last-updated">Loading...</span>
+        <button onclick="loadData()">Refresh</button>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Total spent</div><div class="metric-value" id="m-total">--</div></div>
+      <div class="metric"><div class="metric-label">Purchases</div><div class="metric-value green" id="m-purchases">--</div></div>
+      <div class="metric"><div class="metric-label">Returns</div><div class="metric-value red" id="m-returns">--</div></div>
+      <div class="metric"><div class="metric-label">Receipts</div><div class="metric-value" id="m-count">--</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Spending by category</div>
+      <div class="legend" id="chart-legend"></div>
+      <div style="position:relative;width:100%;height:260px;">
+        <canvas id="catChart" role="img" aria-label="Bar chart of renovation spending by category"></canvas>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Receipt log</div>
+      <div id="table-container"><div class="loading">Loading receipts...</div></div>
+      <button class="download-btn" onclick="downloadExcel()">Download Excel</button>
+    </div>
+  </div>
+
+  <script>
+    const SHEET_ID = '1TeRJg5VdlFFL-00Zf3MvNDIcdBOZG5TYWUhjD0zmbwM';
+    const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Sheet1`;
+
+    const CAT_COLORS = {
+      'Materials': '#1D9E75',
+      'Labor': '#378ADD',
+      'Mortgage': '#7F77DD',
+      'MISC': '#888780'
+    };
+
+    let allReceipts = [];
+    let catChartInstance = null;
+
+    async function loadData() {
+      document.getElementById('last-updated').textContent = 'Refreshing...';
+      try {
+        const res = await fetch(SHEET_URL);
+        const text = await res.text();
+        const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);/)[1]);
+        const rows = json.table.rows || [];
+
+        if (rows.length === 0) {
+          document.getElementById('table-container').innerHTML = '<div class="loading">No receipts yet — send some photos to your Telegram bot!</div>';
+          document.getElementById('last-updated').textContent = 'No data yet';
+          updateMetrics([]);
+          renderChart([]);
+          return;
+        }
+
+        allReceipts = rows.map(row => ({
+          date: row.c[0]?.v || '',
+          store: row.c[1]?.v || '',
+          category: row.c[2]?.v || 'Other',
+          type: (row.c[3]?.v || 'Purchase').toLowerCase(),
+          amount: parseFloat(row.c[4]?.v) || 0,
+          items: row.c[5]?.v || '',
+          notes: row.c[6]?.v || '',
+          photo: row.c[7]?.v || ''
+        }));
+
+        updateMetrics(allReceipts);
+        renderChart(allReceipts);
+        renderTable(allReceipts);
+        document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+      } catch(e) {
+        document.getElementById('table-container').innerHTML = `<div class="error">Could not load data. Make sure the sheet is shared as "Anyone with the link can view".<br><br>Error: ${e.message}</div>`;
+        document.getElementById('last-updated').textContent = 'Error';
+      }
+    }
+
+    function updateMetrics(receipts) {
+      const purchases = receipts.filter(r => r.type === 'purchase').reduce((s, r) => s + Math.abs(r.amount), 0);
+      const returns = receipts.filter(r => r.type === 'return').reduce((s, r) => s + Math.abs(r.amount), 0);
+      document.getElementById('m-total').textContent = '$' + (purchases - returns).toFixed(2);
+      document.getElementById('m-purchases').textContent = '$' + purchases.toFixed(2);
+      document.getElementById('m-returns').textContent = '$' + returns.toFixed(2);
+      document.getElementById('m-count').textContent = receipts.length;
+    }
+
+    function renderChart(receipts) {
+      const cats = {};
+      receipts.filter(r => r.type === 'purchase').forEach(r => {
+        cats[r.category] = (cats[r.category] || 0) + Math.abs(r.amount);
+      });
+
+      const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+      const labels = sorted.map(([k]) => k);
+      const values = sorted.map(([, v]) => parseFloat(v.toFixed(2)));
+      const colors = labels.map(l => CAT_COLORS[l] || '#888780');
+
+      document.getElementById('chart-legend').innerHTML = labels.map((l, i) =>
+        `<span class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span>${l} $${values[i].toFixed(2)}</span>`
+      ).join('');
+
+      if (catChartInstance) catChartInstance.destroy();
+      catChartInstance = new Chart(document.getElementById('catChart').getContext('2d'), {
+        type: 'bar',
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, borderRadius: 4 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' $' + ctx.parsed.y.toFixed(2) } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#888', font: { size: 12 } } },
+            y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', font: { size: 12 }, callback: v => '$' + v } }
+          }
+        }
+      });
+    }
+
+    function renderTable(receipts) {
+      if (receipts.length === 0) {
+        document.getElementById('table-container').innerHTML = '<div class="loading">No receipts yet</div>';
+        return;
+      }
+      const rows = [...receipts].reverse().map(r => {
+        const isReturn = r.type === 'return';
+        const photoLink = r.photo && r.photo !== 'Photo not saved' ? `<a href="${r.photo}" target="_blank">view</a>` : '';
+        return `<tr>
+          <td style="width:90px">${r.date}</td>
+          <td style="width:140px">${r.store}</td>
+          <td style="width:120px">${r.category}</td>
+          <td style="width:80px"><span class="badge ${isReturn ? 'badge-return' : 'badge-purchase'}">${r.type}</span></td>
+          <td style="width:80px" class="${isReturn ? 'amount-neg' : 'amount-pos'}">${isReturn ? '-' : '+'}$${Math.abs(r.amount).toFixed(2)}</td>
+          <td class="col-photo" style="width:50px">${photoLink}</td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('table-container').innerHTML = `
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th style="width:90px">Date</th>
+              <th style="width:140px">Store</th>
+              <th style="width:120px">Category</th>
+              <th style="width:80px">Type</th>
+              <th style="width:80px">Amount</th>
+              <th class="col-photo" style="width:50px">Photo</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function downloadExcel() {
+      if (allReceipts.length === 0) { alert('No data to export yet.'); return; }
+      const ws_data = [
+        ['Date', 'Store', 'Category', 'Type', 'Amount', 'Items', 'Notes', 'Photo'],
+        ...allReceipts.map(r => [r.date, r.store, r.category, r.type, r.amount, r.items, r.notes, r.photo])
+      ];
+      const cats = {};
+      allReceipts.filter(r => r.type === 'purchase').forEach(r => { cats[r.category] = (cats[r.category] || 0) + Math.abs(r.amount); });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws_data), 'Receipts');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Category', 'Total'], ...Object.entries(cats)]), 'By Category');
+      XLSX.writeFile(wb, 'renovation-receipts.xlsx');
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
