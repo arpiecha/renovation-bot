@@ -4,6 +4,10 @@ import logging
 import base64
 import anthropic
 from datetime import datetime
+import threading
+import schedule
+import time
+import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -57,6 +61,16 @@ Category guide:
 """
 
 pending_corrections = {}
+reminders = {}  # {chat_id: [{"name": "ComEd", "day": 15}]}
+
+async def chatid(update, context):
+    chat_id = update.message.chat_id
+    await update.message.reply_text(
+        f"Your Chat ID is: `{chat_id}`
+
+Save this somewhere — you may need it for setup.",
+        parse_mode="Markdown"
+    )
 
 def get_google_services():
     creds_info = json.loads(GOOGLE_CREDS_JSON)
@@ -326,6 +340,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Check if it's a reminder request
+    reminder_keywords = ["remind", "reminder", "due", "bill", "pay", "mortgage", "comed", "nicor"]
+    if any(kw in text.lower() for kw in reminder_keywords) and any(word in text.lower() for word in ["remind", "due", "every month", "monthly", "th", "st", "nd", "rd"]):
+        await handle_reminder_request(update, text)
+        return
+
     await update.message.reply_text("💭 Parsing your entry...")
     try:
         receipt = await parse_manual_entry(text)
@@ -368,13 +388,61 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
+async def handle_reminder_request(update, text: str):
+    chat_id = update.message.chat_id
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    message = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=200,
+        system="""Extract bill reminder info from the user message. Respond ONLY with JSON:
+{"name": "bill name", "day": 15}
+Day is the day of the month it is due. Name should be short like "ComEd", "Nicor", "Mortgage".""",
+        messages=[{"role": "user", "content": text}]
+    )
+    raw = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+    parsed = json.loads(raw)
+    
+    if chat_id not in reminders:
+        reminders[chat_id] = []
+    
+    # Remove existing reminder with same name
+    reminders[chat_id] = [r for r in reminders[chat_id] if r["name"].lower() != parsed["name"].lower()]
+    reminders[chat_id].append(parsed)
+    
+    await update.message.reply_text(
+        f"✅ Got it! I'll remind you to pay *{parsed['name']}* on the *{parsed['day']}th of every month*.",
+        parse_mode="Markdown"
+    )
+
+async def send_reminders(app):
+    today = datetime.now().day
+    for chat_id, bills in reminders.items():
+        for bill in bills:
+            if bill["day"] == today:
+                await app.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"🔔 *Reminder: {bill['name']} is due today!*\n\nDon't forget to pay and log it.",
+                    parse_mode="Markdown"
+                )
+
+def run_scheduler(app):
+    import asyncio
+    schedule.every().day.at("09:00").do(lambda: asyncio.run(send_reminders(app)))
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
 def main():
     ensure_sheet_headers()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("chatid", chatid))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    # Start reminder scheduler in background
+    scheduler_thread = threading.Thread(target=run_scheduler, args=(app,), daemon=True)
+    scheduler_thread.start()
     logger.info("Bot is running...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
