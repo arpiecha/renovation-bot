@@ -335,6 +335,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Check if it's a cancel reminder request
+    if any(kw in text.lower() for kw in ["cancel", "remove", "delete", "stop"]) and any(kw in text.lower() for kw in ["remind", "reminder", "bill", "comed", "nicor", "mortgage"]):
+        await handle_cancel_reminder(update, text)
+        return
+
     # Check if it's a reminder request
     reminder_keywords = ["remind", "reminder", "due", "bill", "pay", "mortgage", "comed", "nicor"]
     if any(kw in text.lower() for kw in reminder_keywords) and any(word in text.lower() for word in ["remind", "due", "every month", "monthly", "th", "st", "nd", "rd"]):
@@ -426,6 +431,33 @@ def run_scheduler(app):
     while True:
         schedule.run_pending()
         time.sleep(60)
+
+async def handle_cancel_reminder(update, text: str):
+    chat_id = update.message.chat_id
+    if chat_id not in reminders or not reminders[chat_id]:
+        await update.message.reply_text("You have no active reminders to cancel.")
+        return
+
+    # Use AI to figure out which bill to cancel
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    message = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=100,
+        system='Extract the bill name the user wants to cancel. Respond ONLY with the bill name, nothing else. Example: "ComEd" or "Nicor" or "Mortgage".',
+        messages=[{"role": "user", "content": text}]
+    )
+    bill_name = message.content[0].text.strip()
+
+    before = len(reminders[chat_id])
+    reminders[chat_id] = [r for r in reminders[chat_id] if r["name"].lower() != bill_name.lower()]
+    after = len(reminders[chat_id])
+
+    if before > after:
+        await update.message.reply_text("🗑 Reminder for " + bill_name + " has been cancelled.")
+    else:
+        # Show active reminders
+        names = ", ".join([r["name"] for r in reminders[chat_id]]) or "none"
+        await update.message.reply_text("Couldn't find a reminder for " + bill_name + ". Active reminders: " + names)
 
 def main():
     ensure_sheet_headers()
