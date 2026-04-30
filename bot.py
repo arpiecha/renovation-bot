@@ -234,8 +234,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"✅ *Receipt saved!*\n\n"
                 f"🏪 {receipt['store']} — {sign}${receipt['total']:.2f}\n"
                 f"📂 {receipt['category']}\n"
-                f"🗂 [View in Drive]({drive_link})",
-                parse_mode="Markdown"
+                f"🗂 [View photo]({drive_link})",
+                parse_mode="Markdown",
+                disable_web_page_preview=True
             )
             del pending_corrections[chat_id]
         except Exception as e:
