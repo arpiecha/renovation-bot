@@ -65,11 +65,7 @@ reminders = {}  # {chat_id: [{"name": "ComEd", "day": 15}]}
 
 async def chatid(update, context):
     chat_id = update.message.chat_id
-    await update.message.reply_text(
-        f"Your Chat ID is: {chat_id}
-
-Save this somewhere — you may need it for setup."
-    )
+    await update.message.reply_text("Your Chat ID is: " + str(chat_id) + "\n\nSave this — you will need it for bill reminders.")
 
 def get_google_services():
     creds_info = json.loads(GOOGLE_CREDS_JSON)
