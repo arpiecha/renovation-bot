@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Renovation Tracker</title>
+  <title>1041 Arbor Ln</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
@@ -46,9 +46,20 @@
   </style>
 </head>
 <body>
+  <div id="lock-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f3;">
+    <div style="background:white;padding:2rem;border-radius:12px;border:1px solid #eee;text-align:center;width:280px;">
+      <div style="font-size:24px;margin-bottom:8px;">🏠</div>
+      <h2 style="font-size:16px;font-weight:600;margin-bottom:4px;">1041 Arbor Ln</h2>
+      <p style="font-size:13px;color:#888;margin-bottom:1.5rem;">Enter password to continue</p>
+      <input id="pwd-input" type="password" placeholder="Password" style="width:100%;padding:9px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;font-family:inherit;outline:none;" onkeydown="if(event.key==='Enter')checkPwd()">
+      <button onclick="checkPwd()" style="width:100%;padding:9px;font-size:14px;background:#1a1a1a;color:white;border:none;border-radius:8px;cursor:pointer;font-family:inherit;">Enter</button>
+      <p id="pwd-error" style="color:#993C1D;font-size:12px;margin-top:8px;display:none;">Incorrect password</p>
+    </div>
+  </div>
+  <div id="main-content" style="display:none;">
   <div class="container">
     <div class="header">
-      <h1>Renovation tracker</h1>
+      <h1>1041 Arbor Ln</h1>
       <div class="header-right">
         <span class="last-updated" id="last-updated">Loading...</span>
         <button onclick="loadData()">Refresh</button>
@@ -215,7 +226,18 @@
       XLSX.writeFile(wb, 'renovation-receipts.xlsx');
     }
 
-    loadData();
+    function checkPwd() {
+      const input = document.getElementById('pwd-input').value;
+      if (input === '15662') {
+        document.getElementById('lock-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        loadData();
+      } else {
+        document.getElementById('pwd-error').style.display = 'block';
+        document.getElementById('pwd-input').value = '';
+      }
+    }
   </script>
+  </div>
 </body>
 </html>
