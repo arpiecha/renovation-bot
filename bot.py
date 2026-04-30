@@ -74,8 +74,16 @@ def upload_to_dropbox(image_bytes: bytes, filename: str) -> str:
         dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
         path = f"/renovation_receipts/{filename}.jpg"
         dbx.files_upload(image_bytes, path, mode=dropbox.files.WriteMode.overwrite)
-        link_result = dbx.sharing_create_shared_link_with_settings(path)
-        url = link_result.url.replace("?dl=0", "?raw=1")
+        # Try to create shared link, if it already exists get the existing one
+        try:
+            link_result = dbx.sharing_create_shared_link_with_settings(path)
+            url = link_result.url
+        except dropbox.exceptions.ApiError as e:
+            # Link already exists, get it
+            links = dbx.sharing_list_shared_links(path=path, direct_only=True)
+            url = links.links[0].url if links.links else ""
+        # Convert to direct view link
+        url = url.replace("?dl=0", "?dl=1").replace("www.dropbox.com", "dl.dropboxusercontent.com")
         return url
     except Exception as e:
         logger.warning(f"Dropbox upload failed: {e}")
