@@ -66,6 +66,14 @@
       </div>
     </div>
 
+    <div style="background:white;border-radius:10px;padding:1rem;border:1px solid #eee;margin-bottom:1rem;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:28px;">🏗️</div>
+      <div>
+        <div style="font-size:12px;color:#888;">Project started April 15, 2026</div>
+        <div id="project-timer" style="font-size:18px;font-weight:600;color:#1a1a1a;">--</div>
+      </div>
+    </div>
+
     <div class="metrics">
       <div class="metric"><div class="metric-label">Total spent</div><div class="metric-value" id="m-total">--</div></div>
       <div class="metric"><div class="metric-label">Purchases</div><div class="metric-value green" id="m-purchases">--</div></div>
@@ -226,11 +234,25 @@
       XLSX.writeFile(wb, 'renovation-receipts.xlsx');
     }
 
+    function updateTimer() {
+      const start = new Date('2026-04-15');
+      const now = new Date();
+      const diff = Math.floor((now - start) / 1000);
+      const days = Math.floor(diff / 86400);
+      const hours = Math.floor((diff % 86400) / 3600);
+      const mins = Math.floor((diff % 3600) / 60);
+      const secs = diff % 60;
+      document.getElementById('project-timer').textContent =
+        days + 'd ' + String(hours).padStart(2,'0') + 'h ' + String(mins).padStart(2,'0') + 'm ' + String(secs).padStart(2,'0') + 's';
+    }
+
     function checkPwd() {
       const input = document.getElementById('pwd-input').value;
       if (input === '15662') {
         document.getElementById('lock-screen').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
+        updateTimer();
+        setInterval(updateTimer, 1000);
         loadData();
       } else {
         document.getElementById('pwd-error').style.display = 'block';
