@@ -223,17 +223,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     receipt = pending["receipt"]
 
     if data == "confirm":
-        await query.edit_message_text("💾 Saving receipt...")
+        await query.edit_message_text("💾 Saving entry...")
         try:
             filename = f"receipt_{receipt['store'].replace(' ', '_')}_{receipt['date']}_{int(datetime.now().timestamp())}"
-            drive_link = upload_to_dropbox(pending["image_bytes"], filename)
+            if pending["image_bytes"]:
+                drive_link = upload_to_dropbox(pending["image_bytes"], filename)
+                photo_line = f"\n🗂 [View photo]({drive_link})"
+            else:
+                drive_link = "Manual entry - no photo"
+                photo_line = "\n📝 Manual entry — no photo"
             append_to_sheet(receipt, drive_link)
             sign = "-" if receipt["type"] == "return" else "+"
             await query.edit_message_text(
-                f"✅ *Receipt saved!*\n\n"
+                f"✅ *Entry saved!*\n\n"
                 f"🏪 {receipt['store']} — {sign}${receipt['total']:.2f}\n"
-                f"📂 {receipt['category']}\n"
-                f"🗂 [View photo]({drive_link})",
+                f"📂 {receipt['category']}"
+                f"{photo_line}",
                 parse_mode="Markdown",
                 disable_web_page_preview=True
             )
