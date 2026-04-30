@@ -40,6 +40,18 @@
     .error { padding: 1rem; color: #993C1D; background: #FAECE7; border-radius: 8px; font-size: 14px; line-height: 1.6; }
     .download-btn { width: 100%; margin-top: 1rem; padding: 10px; font-size: 14px; }
     a { color: #185FA5; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 1rem; }
+    .tab { padding: 8px 18px; font-size: 13px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #888; cursor: pointer; font-family: inherit; }
+    .tab.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .reminder-card { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9f9f8; border-radius: 8px; margin-bottom: 8px; border: 1px solid #eee; }
+    .reminder-name { font-size: 14px; font-weight: 600; }
+    .reminder-due { font-size: 12px; color: #888; margin-top: 2px; }
+    .reminder-badge { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; }
+    .badge-soon { background: #FEF3C7; color: #92400E; }
+    .badge-upcoming { background: #E1F5EE; color: #0F6E56; }
+    .badge-today { background: #FAECE7; color: #993C1D; }
     @media (max-width: 500px) {
       .col-items, .col-photo { display: none; }
     }
@@ -74,6 +86,12 @@
       </div>
     </div>
 
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('overview')">📊 Overview</button>
+      <button class="tab" onclick="switchTab('reminders')">🔔 Reminders</button>
+    </div>
+
+    <div id="tab-overview" class="tab-content active">
     <div class="metrics">
       <div class="metric"><div class="metric-label">Total spent</div><div class="metric-value" id="m-total">--</div></div>
       <div class="metric"><div class="metric-label">Purchases</div><div class="metric-value green" id="m-purchases">--</div></div>
@@ -94,6 +112,17 @@
       <div id="table-container"><div class="loading">Loading receipts...</div></div>
       <button class="download-btn" onclick="downloadExcel()">Download Excel</button>
     </div>
+    </div><!-- end tab-overview -->
+
+    <div id="tab-reminders" class="tab-content">
+      <div class="section">
+        <div class="section-title">Bill Reminders</div>
+        <div id="reminders-container"><div class="loading">Loading reminders...</div></div>
+        <p style="font-size:12px;color:#888;margin-top:1rem;">To add a reminder, text your Telegram bot: <em>"Remind me to pay ComEd on the 15th"</em></p>
+      </div>
+    </div>
+
+  </div>
   </div>
 
   <script>
@@ -244,6 +273,51 @@
       const secs = diff % 60;
       document.getElementById('project-timer').textContent =
         days + 'd ' + String(hours).padStart(2,'0') + 'h ' + String(mins).padStart(2,'0') + 'm ' + String(secs).padStart(2,'0') + 's';
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      event.target.classList.add('active');
+      if (tab === 'reminders') loadReminders();
+    }
+
+    async function loadReminders() {
+      const REMINDERS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Reminders`;
+      const container = document.getElementById('reminders-container');
+      container.innerHTML = '<div class="loading">Loading reminders...</div>';
+      try {
+        const res = await fetch(REMINDERS_URL);
+        const text = await res.text();
+        const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);/)[1]);
+        const rows = json.table.rows || [];
+        if (rows.length === 0) {
+          container.innerHTML = '<div class="loading">No reminders set yet. Text your bot to add one!</div>';
+          return;
+        }
+        const today = new Date();
+        container.innerHTML = rows.map(row => {
+          const name = row.c[0]?.v || '';
+          const day = parseInt(row.c[1]?.v) || 0;
+          const nextDue = row.c[2]?.v || '';
+          const dueDate = new Date(nextDue);
+          const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+          let badgeClass = 'badge-upcoming';
+          let badgeText = daysUntil + ' days away';
+          if (daysUntil === 0) { badgeClass = 'badge-today'; badgeText = 'Due today!'; }
+          else if (daysUntil <= 5) { badgeClass = 'badge-soon'; badgeText = 'Due in ' + daysUntil + ' days'; }
+          return `<div class="reminder-card">
+            <div>
+              <div class="reminder-name">💡 ${name}</div>
+              <div class="reminder-due">Due every ${day}${day===1?'st':day===2?'nd':day===3?'rd':'th'} of the month · Next: ${nextDue}</div>
+            </div>
+            <span class="reminder-badge ${badgeClass}">${badgeText}</span>
+          </div>`;
+        }).join('');
+      } catch(e) {
+        container.innerHTML = '<div class="loading">Could not load reminders.</div>';
+      }
     }
 
     function checkPwd() {
