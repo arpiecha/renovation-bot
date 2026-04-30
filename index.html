@@ -297,20 +297,30 @@
           return;
         }
         const today = new Date();
+        today.setHours(0,0,0,0);
         container.innerHTML = rows.map(row => {
           const name = row.c[0]?.v || '';
           const day = parseInt(row.c[1]?.v) || 0;
-          const nextDue = row.c[2]?.v || '';
-          const dueDate = new Date(nextDue);
+          const nextDueRaw = row.c[2]?.v || '';
+          // Handle Google Sheets date format (could be "Date(yyyy,m,d)" or "YYYY-MM-DD")
+          let dueDate;
+          const dateMatch = String(nextDueRaw).match(/Date\((\d+),(\d+),(\d+)\)/);
+          if (dateMatch) {
+            dueDate = new Date(parseInt(dateMatch[1]), parseInt(dateMatch[2]), parseInt(dateMatch[3]));
+          } else {
+            dueDate = new Date(nextDueRaw);
+          }
+          const nextDue = dueDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
           const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
           let badgeClass = 'badge-upcoming';
           let badgeText = daysUntil + ' days away';
           if (daysUntil === 0) { badgeClass = 'badge-today'; badgeText = 'Due today!'; }
           else if (daysUntil <= 5) { badgeClass = 'badge-soon'; badgeText = 'Due in ' + daysUntil + ' days'; }
+          const suffix = day===1?'st':day===2?'nd':day===3?'rd':'th';
           return `<div class="reminder-card">
             <div>
-              <div class="reminder-name">💡 ${name}</div>
-              <div class="reminder-due">Due every ${day}${day===1?'st':day===2?'nd':day===3?'rd':'th'} of the month · Next: ${nextDue}</div>
+              <div class="reminder-name">🔔 ${name}</div>
+              <div class="reminder-due">Due every ${day}${suffix} of the month · Next: ${nextDue}</div>
             </div>
             <span class="reminder-badge ${badgeClass}">${badgeText}</span>
           </div>`;
