@@ -408,11 +408,61 @@ Day is the day of the month it is due. Name should be short like "ComEd", "Nicor
     # Remove existing reminder with same name
     reminders[chat_id] = [r for r in reminders[chat_id] if r["name"].lower() != parsed["name"].lower()]
     reminders[chat_id].append(parsed)
+    save_reminders_to_sheet(chat_id, reminders[chat_id])
     
     await update.message.reply_text(
         f"✅ Got it! I'll remind you to pay *{parsed['name']}* on the *{parsed['day']}th of every month*.",
         parse_mode="Markdown"
     )
+
+def save_reminders_to_sheet(chat_id, bills):
+    try:
+        _, sheets_service = get_google_services()
+        # Clear existing reminders sheet and rewrite
+        sheets_service.spreadsheets().values().clear(
+            spreadsheetId=GOOGLE_SHEET_ID, range="Reminders!A:D"
+        ).execute()
+        headers = [["Bill Name", "Due Day", "Next Due Date", "Chat ID"]]
+        rows = []
+        for bill in bills:
+            # Calculate next due date
+            now = datetime.now()
+            due_day = bill["day"]
+            if now.day <= due_day:
+                next_due = now.replace(day=due_day).strftime("%Y-%m-%d")
+            else:
+                if now.month == 12:
+                    next_due = now.replace(year=now.year+1, month=1, day=due_day).strftime("%Y-%m-%d")
+                else:
+                    next_due = now.replace(month=now.month+1, day=due_day).strftime("%Y-%m-%d")
+            rows.append([bill["name"], bill["day"], next_due, str(chat_id)])
+        sheets_service.spreadsheets().values().update(
+            spreadsheetId=GOOGLE_SHEET_ID,
+            range="Reminders!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": headers + rows}
+        ).execute()
+    except Exception as e:
+        logger.warning(f"Could not save reminders to sheet: {e}")
+
+def load_reminders_from_sheet():
+    try:
+        _, sheets_service = get_google_services()
+        result = sheets_service.spreadsheets().values().get(
+            spreadsheetId=GOOGLE_SHEET_ID, range="Reminders!A2:D"
+        ).execute()
+        rows = result.get("values", [])
+        loaded = {}
+        for row in rows:
+            if len(row) >= 4:
+                chat_id = int(row[3])
+                if chat_id not in loaded:
+                    loaded[chat_id] = []
+                loaded[chat_id].append({"name": row[0], "day": int(row[1])})
+        return loaded
+    except Exception as e:
+        logger.warning(f"Could not load reminders from sheet: {e}")
+        return {}
 
 async def send_reminders(app):
     today = datetime.now().day
@@ -453,6 +503,7 @@ async def handle_cancel_reminder(update, text: str):
     after = len(reminders[chat_id])
 
     if before > after:
+        save_reminders_to_sheet(chat_id, reminders[chat_id])
         await update.message.reply_text("🗑 Reminder for " + bill_name + " has been cancelled.")
     else:
         # Show active reminders
@@ -467,6 +518,11 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    # Load reminders from sheet on startup
+    global reminders
+    reminders = load_reminders_from_sheet()
+    logger.info(f"Loaded {sum(len(v) for v in reminders.values())} reminders from sheet")
+
     # Start reminder scheduler in background
     scheduler_thread = threading.Thread(target=run_scheduler, args=(app,), daemon=True)
     scheduler_thread.start()
