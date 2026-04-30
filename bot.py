@@ -282,11 +282,86 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del pending_corrections[chat_id]
         await query.edit_message_text("🗑 Receipt discarded.")
 
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📸 Send me a *photo* of a receipt to get started!\n\nUse /start to see instructions.",
-        parse_mode="Markdown"
+
+async def parse_manual_entry(text: str) -> dict:
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    message = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=500,
+        system="""You are a receipt parser. The user will describe a purchase in natural language.
+Extract details and respond ONLY with a JSON object, no markdown, no extra text:
+{
+  "store": "store or payee name",
+  "date": "YYYY-MM-DD",
+  "total": 0.00,
+  "type": "purchase or return",
+  "category": "one of: Materials, Labor, Mortgage, MISC",
+  "items": ["item1"],
+  "notes": "brief note"
+}
+Category guide:
+- Materials: supplies, tools, hardware, tiles, lumber, paint, plumbing/electrical parts
+- Labor: contractor payments, installation fees, service charges
+- Mortgage: mortgage payments, interest, property taxes, insurance
+- MISC: permits, fees, cleaning, disposal, anything else
+If date not mentioned use today. If store not mentioned use 'Cash Payment'.""",
+        messages=[{"role": "user", "content": text}]
     )
+    raw = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+    return json.loads(raw)
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    if len(text) < 5:
+        await update.message.reply_text(
+            "📸 Send a photo of a receipt, or describe a cash payment like:\n\n"
+            "_'Paid contractor $500 for labor today'_\n"
+            "_'Home Depot $85 for pipes'_",
+            parse_mode="Markdown"
+        )
+        return
+
+    await update.message.reply_text("💭 Parsing your entry...")
+    try:
+        receipt = await parse_manual_entry(text)
+        chat_id = update.message.chat_id
+        pending_corrections[chat_id] = {
+            "receipt": receipt,
+            "image_bytes": None,
+            "mime_type": None,
+            "message_id": update.message.message_id
+        }
+        sign = "-" if receipt["type"] == "return" else "+"
+        emoji = "↩️" if receipt["type"] == "return" else "💵"
+        summary = (
+            f"{emoji} *Manual entry detected*\n\n"
+            f"🏪 Store: {receipt['store']}\n"
+            f"📅 Date: {receipt['date']}\n"
+            f"💰 Amount: {sign}${receipt['total']:.2f}\n"
+            f"📂 Category: {receipt['category']}\n"
+            f"🛍 Items: {', '.join(receipt.get('items', [])) or 'N/A'}\n"
+            f"📝 Notes: {receipt.get('notes', 'N/A')}\n\n"
+            f"Is this correct?"
+        )
+        keyboard = [
+            [InlineKeyboardButton("✅ Looks good, save it!", callback_data="confirm")],
+            [InlineKeyboardButton("✏️ Fix category", callback_data="fix_category")],
+            [InlineKeyboardButton("✏️ Fix type (purchase/return)", callback_data="fix_type")],
+            [InlineKeyboardButton("❌ Discard", callback_data="discard")]
+        ]
+        await update.message.reply_text(
+            summary,
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except Exception as e:
+        logger.error(f"Error parsing manual entry: {e}")
+        await update.message.reply_text(
+            "❌ Couldn't parse that. Try something like:\n\n"
+            "_'Paid contractor $500 for labor'_\n"
+            "_'Home Depot $85 pipes and fittings'_",
+            parse_mode="Markdown"
+        )
 
 def main():
     ensure_sheet_headers()
