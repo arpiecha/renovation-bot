@@ -395,7 +395,7 @@ async def handle_reminder_request(update, text: str):
         message = client.messages.create(
             model="claude-sonnet-4-5",
             max_tokens=200,
-            system='Extract bill reminder info from the user message. You MUST respond ONLY with a JSON object. No explanation, no markdown, just raw JSON like this: {"name": "ComEd", "day": 15}. The day is the day of month it is due. The name should be short like ComEd, Nicor, or Mortgage.',
+            system='You extract bill reminder info. Always respond with ONLY this JSON format, nothing else: {"name": "BillName", "day": 15} where day is an integer between 1-31. If the user says "15th" the day is 15. If the user says "1st" the day is 1. Never return null for day.',
             messages=[{"role": "user", "content": text}]
         )
         raw = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
