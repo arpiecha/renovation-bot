@@ -416,13 +416,7 @@ async def handle_reminder_request(update, text: str):
         )
     except Exception as e:
         logger.error(f"Reminder error: {e}")
-        await update.message.reply_text(
-            "❌ Couldn't set that reminder. Try something like:
-
-"
-            "_'Remind me to pay ComEd on the 15th'_",
-            parse_mode="Markdown"
-        )
+        await update.message.reply_text("Could not set reminder. Try: Remind me to pay ComEd on the 15th")
 
 def save_reminders_to_sheet(chat_id, bills):
     try:
