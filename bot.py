@@ -390,30 +390,39 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_reminder_request(update, text: str):
     chat_id = update.message.chat_id
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    message = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=200,
-        system="""Extract bill reminder info from the user message. Respond ONLY with JSON:
-{"name": "bill name", "day": 15}
-Day is the day of the month it is due. Name should be short like "ComEd", "Nicor", "Mortgage".""",
-        messages=[{"role": "user", "content": text}]
-    )
-    raw = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
-    parsed = json.loads(raw)
-    
-    if chat_id not in reminders:
-        reminders[chat_id] = []
-    
-    # Remove existing reminder with same name
-    reminders[chat_id] = [r for r in reminders[chat_id] if r["name"].lower() != parsed["name"].lower()]
-    reminders[chat_id].append(parsed)
-    save_reminders_to_sheet(chat_id, reminders[chat_id])
-    
-    await update.message.reply_text(
-        f"✅ Got it! I'll remind you to pay *{parsed['name']}* on the *{parsed['day']}th of every month*.",
-        parse_mode="Markdown"
-    )
+    try:
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=200,
+            system='Extract bill reminder info from the user message. You MUST respond ONLY with a JSON object. No explanation, no markdown, just raw JSON like this: {"name": "ComEd", "day": 15}. The day is the day of month it is due. The name should be short like ComEd, Nicor, or Mortgage.',
+            messages=[{"role": "user", "content": text}]
+        )
+        raw = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+        logger.info(f"Reminder AI response: {raw}")
+        parsed = json.loads(raw)
+
+        if chat_id not in reminders:
+            reminders[chat_id] = []
+
+        reminders[chat_id] = [r for r in reminders[chat_id] if r["name"].lower() != parsed["name"].lower()]
+        reminders[chat_id].append(parsed)
+        save_reminders_to_sheet(chat_id, reminders[chat_id])
+
+        suffix = "st" if parsed["day"] == 1 else "nd" if parsed["day"] == 2 else "rd" if parsed["day"] == 3 else "th"
+        await update.message.reply_text(
+            f"✅ Got it! I'll remind you to pay *{parsed['name']}* on the *{parsed['day']}{suffix} of every month*.",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Reminder error: {e}")
+        await update.message.reply_text(
+            "❌ Couldn't set that reminder. Try something like:
+
+"
+            "_'Remind me to pay ComEd on the 15th'_",
+            parse_mode="Markdown"
+        )
 
 def save_reminders_to_sheet(chat_id, bills):
     try:
