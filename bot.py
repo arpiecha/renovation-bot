@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 GOOGLE_CREDS_JSON = os.environ["GOOGLE_CREDS_JSON"]
-DROPBOX_ACCESS_TOKEN = os.environ["DROPBOX_ACCESS_TOKEN"]
+DROPBOX_APP_KEY = os.environ["DROPBOX_APP_KEY"]
+DROPBOX_APP_SECRET = os.environ["DROPBOX_APP_SECRET"]
+DROPBOX_REFRESH_TOKEN = os.environ["DROPBOX_REFRESH_TOKEN"]
 
 GOOGLE_SHEET_ID = os.environ["GOOGLE_SHEET_ID"]
 
@@ -80,7 +82,11 @@ def get_google_services():
 
 def upload_to_dropbox(image_bytes: bytes, filename: str) -> str:
     try:
-        dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
+        dbx = dropbox.Dropbox(
+            oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+            app_key=DROPBOX_APP_KEY,
+            app_secret=DROPBOX_APP_SECRET
+        )
         path = f"/renovation_receipts/{filename}.jpg"
         dbx.files_upload(image_bytes, path, mode=dropbox.files.WriteMode.overwrite)
         # Try to create shared link, if it already exists get the existing one
