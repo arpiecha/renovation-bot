@@ -18,25 +18,25 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
 import dropbox
- 
- 
+
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
- 
+
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 GOOGLE_CREDS_JSON = os.environ["GOOGLE_CREDS_JSON"]
 DROPBOX_APP_KEY = os.environ["DROPBOX_APP_KEY"]
 DROPBOX_APP_SECRET = os.environ["DROPBOX_APP_SECRET"]
 DROPBOX_REFRESH_TOKEN = os.environ["DROPBOX_REFRESH_TOKEN"]
- 
+
 GOOGLE_SHEET_ID = os.environ["GOOGLE_SHEET_ID"]
- 
+
 CATEGORIES = ["Materials", "Labor", "Mortgage", "MISC"]
- 
+
 SYSTEM_PROMPT = """You are a receipt analyzer for a home renovation project.
 When given a receipt image, extract the following and respond ONLY with a JSON object (no markdown, no extra text):
- 
+
 {
   "store": "store name",
   "date": "YYYY-MM-DD",
@@ -46,7 +46,7 @@ When given a receipt image, extract the following and respond ONLY with a JSON o
   "items": ["item1", "item2"],
   "notes": "brief note about what was bought"
 }
- 
+
 Rules:
 - type must be "purchase" or "return"
 - category must match exactly one of: Materials, Labor, Mortgage, MISC
@@ -54,21 +54,21 @@ Rules:
 - If total not clear, use 0.00
 - Items should be the main products purchased
 - For returns, total should still be positive (type field indicates it's a return)
- 
+
 Category guide:
 - Materials: any physical supplies, tools, hardware, tiles, lumber, paint, plumbing parts, electrical parts, etc.
 - Labor: contractor payments, installation fees, service charges, any work done by a person
 - Mortgage: mortgage payments, interest, property taxes, insurance related to the property
 - MISC: anything that doesn't clearly fit above — permits, fees, cleaning, disposal, etc.
 """
- 
+
 pending_corrections = {}
 reminders = {}  # {chat_id: [{"name": "ComEd", "day": 15}]}
- 
+
 async def chatid(update, context):
     chat_id = update.message.chat_id
     await update.message.reply_text("Your Chat ID is: " + str(chat_id) + "\n\nSave this — you will need it for bill reminders.")
- 
+
 def get_google_services():
     creds_info = json.loads(GOOGLE_CREDS_JSON)
     scopes = [
@@ -79,7 +79,7 @@ def get_google_services():
     drive_service = build("drive", "v3", credentials=creds)
     sheets_service = build("sheets", "v4", credentials=creds)
     return drive_service, sheets_service
- 
+
 def upload_to_dropbox(image_bytes: bytes, filename: str) -> str:
     try:
         dbx = dropbox.Dropbox(
@@ -103,7 +103,7 @@ def upload_to_dropbox(image_bytes: bytes, filename: str) -> str:
     except Exception as e:
         logger.warning(f"Dropbox upload failed: {e}")
         return "Photo not saved"
- 
+
 def append_to_sheet(receipt: dict, drive_link: str):
     _, sheets_service = get_google_services()
     amount = -receipt["total"] if receipt["type"] == "return" else receipt["total"]
@@ -123,7 +123,7 @@ def append_to_sheet(receipt: dict, drive_link: str):
         valueInputOption="USER_ENTERED",
         body={"values": [row]}
     ).execute()
- 
+
 def ensure_sheet_headers():
     try:
         _, sheets_service = get_google_services()
@@ -140,7 +140,7 @@ def ensure_sheet_headers():
             ).execute()
     except Exception as e:
         logger.error(f"Error ensuring headers: {e}")
- 
+
 async def analyze_receipt(image_bytes: bytes, mime_type: str) -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
@@ -161,7 +161,7 @@ async def analyze_receipt(image_bytes: bytes, mime_type: str) -> dict:
     logger.info(f"Claude response: {raw}")
     text = raw.strip().replace("```json", "").replace("```", "").strip()
     return json.loads(text)
- 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👷 *Renovation Receipt Tracker*\n\n"
@@ -179,7 +179,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Just send a photo to get started!",
         parse_mode="Markdown"
     )
- 
+
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📸 Got it! Analyzing your receipt...")
     try:
@@ -223,20 +223,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"❌ Debug error: {type(e).__name__}: {str(e)[:300]}"
         )
- 
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     chat_id = query.message.chat_id
     data = query.data
- 
+
     if chat_id not in pending_corrections:
         await query.edit_message_text("Session expired. Please send the photo again.")
         return
- 
+
     pending = pending_corrections[chat_id]
     receipt = pending["receipt"]
- 
+
     if data == "confirm":
         await query.edit_message_text("💾 Saving entry...")
         try:
@@ -261,54 +261,52 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Save error: {e}")
             await query.edit_message_text(f"❌ Error saving: {str(e)}\n\nCheck your Google credentials.")
- 
+
     elif data == "fix_amount":
         pending_corrections[chat_id]["awaiting_amount"] = True
         await query.edit_message_text(
             "Please type the correct amount (numbers only, e.g. 1500):"
         )
- 
+
     elif data == "fix_category":
         buttons = [[InlineKeyboardButton(cat, callback_data=f"cat_{cat}")] for cat in CATEGORIES]
         await query.edit_message_text(
             "Choose the correct category:",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
- 
+
     elif data.startswith("cat_"):
         new_cat = data[4:]
         pending_corrections[chat_id]["receipt"]["category"] = new_cat
         keyboard = [[InlineKeyboardButton("✅ Save now", callback_data="confirm")],
                     [InlineKeyboardButton("✏️ Fix type", callback_data="fix_type")]]
         await query.edit_message_text(
-            f"Category updated to: *{new_cat}*\n\nReady to save?",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
- 
+
     elif data == "fix_type":
         keyboard = [
             [InlineKeyboardButton("🛒 Purchase", callback_data="type_purchase")],
             [InlineKeyboardButton("↩️ Return", callback_data="type_return")]
         ]
         await query.edit_message_text("Is this a purchase or a return?", reply_markup=InlineKeyboardMarkup(keyboard))
- 
+
     elif data.startswith("type_"):
         new_type = data[5:]
         pending_corrections[chat_id]["receipt"]["type"] = new_type
         keyboard = [[InlineKeyboardButton("✅ Save now", callback_data="confirm")],
                     [InlineKeyboardButton("✏️ Fix category", callback_data="fix_category")]]
         await query.edit_message_text(
-            f"Type updated to: *{new_type}*\n\nReady to save?",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
- 
+
     elif data == "discard":
         del pending_corrections[chat_id]
         await query.edit_message_text("🗑 Receipt discarded.")
- 
- 
+
+
 async def parse_manual_entry(text: str) -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
@@ -335,11 +333,11 @@ If date not mentioned use today. If store not mentioned use 'Cash Payment'.""",
     )
     raw = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
     return json.loads(raw)
- 
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.message.chat_id
- 
+
     # Check if we're waiting for an amount correction
     if chat_id in pending_corrections and pending_corrections[chat_id].get("awaiting_amount"):
         try:
@@ -353,16 +351,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("✏️ Fix category", callback_data="fix_category")]
             ]
             await update.message.reply_text(
-                f"Amount updated to: *{sign}${new_amount:.2f}*
- 
-Ready to save?",
+                "Amount updated to: " + sign + "$" + f"{new_amount:.2f}" + "\n\nReady to save?",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         except ValueError:
             await update.message.reply_text("Please enter just the number, e.g. 1500 or 85.50")
         return
- 
+
     if len(text) < 5:
         await update.message.reply_text(
             "📸 Send a photo of a receipt, or describe a cash payment like:\n\n"
@@ -371,18 +367,18 @@ Ready to save?",
             parse_mode="Markdown"
         )
         return
- 
+
     # Check if it's a cancel reminder request
     if any(kw in text.lower() for kw in ["cancel", "remove", "delete", "stop"]) and any(kw in text.lower() for kw in ["remind", "reminder", "bill", "comed", "nicor", "mortgage"]):
         await handle_cancel_reminder(update, text)
         return
- 
+
     # Check if it's a reminder request
     reminder_keywords = ["remind", "reminder", "due", "bill", "pay", "mortgage", "comed", "nicor"]
     if any(kw in text.lower() for kw in reminder_keywords) and any(word in text.lower() for word in ["remind", "due", "every month", "monthly", "th", "st", "nd", "rd"]):
         await handle_reminder_request(update, text)
         return
- 
+
     await update.message.reply_text("💭 Parsing your entry...")
     try:
         receipt = await parse_manual_entry(text)
@@ -424,7 +420,7 @@ Ready to save?",
             "_'Home Depot $85 pipes and fittings'_",
             parse_mode="Markdown"
         )
- 
+
 async def handle_reminder_request(update, text: str):
     chat_id = update.message.chat_id
     try:
@@ -438,14 +434,14 @@ async def handle_reminder_request(update, text: str):
         raw = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
         logger.info(f"Reminder AI response: {raw}")
         parsed = json.loads(raw)
- 
+
         if chat_id not in reminders:
             reminders[chat_id] = []
- 
+
         reminders[chat_id] = [r for r in reminders[chat_id] if r["name"].lower() != parsed["name"].lower()]
         reminders[chat_id].append(parsed)
         save_reminders_to_sheet(chat_id, reminders[chat_id])
- 
+
         suffix = "st" if parsed["day"] == 1 else "nd" if parsed["day"] == 2 else "rd" if parsed["day"] == 3 else "th"
         await update.message.reply_text(
             f"✅ Got it! I'll remind you to pay *{parsed['name']}* on the *{parsed['day']}{suffix} of every month*.",
@@ -454,7 +450,7 @@ async def handle_reminder_request(update, text: str):
     except Exception as e:
         logger.error(f"Reminder error: {e}")
         await update.message.reply_text("Could not set reminder. Try: Remind me to pay ComEd on the 15th")
- 
+
 def save_reminders_to_sheet(chat_id, bills):
     try:
         _, sheets_service = get_google_services()
@@ -484,7 +480,7 @@ def save_reminders_to_sheet(chat_id, bills):
         ).execute()
     except Exception as e:
         logger.warning(f"Could not save reminders to sheet: {e}")
- 
+
 def load_reminders_from_sheet():
     try:
         _, sheets_service = get_google_services()
@@ -503,7 +499,7 @@ def load_reminders_from_sheet():
     except Exception as e:
         logger.warning(f"Could not load reminders from sheet: {e}")
         return {}
- 
+
 async def send_reminders(app):
     today = datetime.now().day
     for chat_id, bills in reminders.items():
@@ -514,20 +510,20 @@ async def send_reminders(app):
                     text=f"🔔 *Reminder: {bill['name']} is due today!*\n\nDon't forget to pay and log it.",
                     parse_mode="Markdown"
                 )
- 
+
 def run_scheduler(app):
     import asyncio
     schedule.every().day.at("09:00").do(lambda: asyncio.run(send_reminders(app)))
     while True:
         schedule.run_pending()
         time.sleep(60)
- 
+
 async def handle_cancel_reminder(update, text: str):
     chat_id = update.message.chat_id
     if chat_id not in reminders or not reminders[chat_id]:
         await update.message.reply_text("You have no active reminders to cancel.")
         return
- 
+
     # Use AI to figure out which bill to cancel
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
@@ -537,11 +533,11 @@ async def handle_cancel_reminder(update, text: str):
         messages=[{"role": "user", "content": text}]
     )
     bill_name = message.content[0].text.strip()
- 
+
     before = len(reminders[chat_id])
     reminders[chat_id] = [r for r in reminders[chat_id] if r["name"].lower() != bill_name.lower()]
     after = len(reminders[chat_id])
- 
+
     if before > after:
         save_reminders_to_sheet(chat_id, reminders[chat_id])
         await update.message.reply_text("🗑 Reminder for " + bill_name + " has been cancelled.")
@@ -549,7 +545,7 @@ async def handle_cancel_reminder(update, text: str):
         # Show active reminders
         names = ", ".join([r["name"] for r in reminders[chat_id]]) or "none"
         await update.message.reply_text("Couldn't find a reminder for " + bill_name + ". Active reminders: " + names)
- 
+
 def main():
     ensure_sheet_headers()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -562,12 +558,12 @@ def main():
     global reminders
     reminders = load_reminders_from_sheet()
     logger.info(f"Loaded {sum(len(v) for v in reminders.values())} reminders from sheet")
- 
+
     # Start reminder scheduler in background
     scheduler_thread = threading.Thread(target=run_scheduler, args=(app,), daemon=True)
     scheduler_thread.start()
     logger.info("Bot is running...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
- 
+
 if __name__ == "__main__":
     main()
