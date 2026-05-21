@@ -339,6 +339,30 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.message.chat_id
 
+    # Check if it's a dashboard save command
+    if text.startswith("DASHBOARD_SAVE|"):
+        try:
+            parts = text.split("|")
+            receipt = {
+                "date": parts[1],
+                "store": parts[2],
+                "category": parts[3],
+                "type": parts[4],
+                "total": float(parts[5]),
+                "items": parts[6].split(", "),
+                "notes": parts[7] if len(parts) > 7 else ""
+            }
+            drive_link = "Uploaded from dashboard"
+            append_to_sheet(receipt, drive_link)
+            sign = "-" if receipt["type"] == "return" else "+"
+            await update.message.reply_text(
+                f"✅ Dashboard receipt saved!
+{receipt['store']} — {sign}${receipt['total']:.2f} ({receipt['category']})"
+            )
+        except Exception as e:
+            logger.error(f"Dashboard save error: {e}")
+        return
+
     # Check if we're waiting for an amount correction
     if chat_id in pending_corrections and pending_corrections[chat_id].get("awaiting_amount"):
         try:
