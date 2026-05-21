@@ -53,7 +53,7 @@
     .badge-upcoming { background: #E1F5EE; color: #0F6E56; }
     .badge-today { background: #FAECE7; color: #993C1D; }
     @media (max-width: 500px) {
-      .col-items, .col-photo { display: none; }
+      .col-photo { display: none; }
     }
   </style>
 </head>
@@ -225,10 +225,11 @@
         const photoLink = r.photo && r.photo !== 'Photo not saved' ? `<a href="${r.photo}" target="_blank">view</a>` : '';
         return `<tr>
           <td style="width:90px">${r.date}</td>
-          <td style="width:140px">${r.store}</td>
-          <td style="width:120px">${r.category}</td>
-          <td style="width:80px"><span class="badge ${isReturn ? 'badge-return' : 'badge-purchase'}">${r.type}</span></td>
-          <td style="width:80px" class="${isReturn ? 'amount-neg' : 'amount-pos'}">${isReturn ? '-' : '+'}$${Math.abs(r.amount).toFixed(2)}</td>
+          <td style="width:130px">${r.store}</td>
+          <td style="width:100px">${r.category}</td>
+          <td style="width:70px"><span class="badge ${isReturn ? 'badge-return' : 'badge-purchase'}">${r.type}</span></td>
+          <td style="width:75px" class="${isReturn ? 'amount-neg' : 'amount-pos'}">${isReturn ? '-' : '+'}$${Math.abs(r.amount).toFixed(2)}</td>
+          <td style="width:180px;color:#888;font-size:12px;">${r.items || ''}</td>
           <td class="col-photo" style="width:50px">${photoLink}</td>
         </tr>`;
       }).join('');
@@ -241,7 +242,8 @@
               <th style="width:140px">Store</th>
               <th style="width:120px">Category</th>
               <th style="width:80px">Type</th>
-              <th style="width:80px">Amount</th>
+              <th style="width:75px">Amount</th>
+              <th style="width:180px">Items</th>
               <th class="col-photo" style="width:50px">Photo</th>
             </tr></thead>
             <tbody>${rows}</tbody>
