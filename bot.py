@@ -209,6 +209,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         keyboard = [
             [InlineKeyboardButton("✅ Looks good, save it!", callback_data="confirm")],
+            [InlineKeyboardButton("💰 Fix amount", callback_data="fix_amount")],
             [InlineKeyboardButton("✏️ Fix category", callback_data="fix_category")],
             [InlineKeyboardButton("✏️ Fix type (purchase/return)", callback_data="fix_type")],
             [InlineKeyboardButton("❌ Discard", callback_data="discard")]
@@ -403,6 +404,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         keyboard = [
             [InlineKeyboardButton("✅ Looks good, save it!", callback_data="confirm")],
+            [InlineKeyboardButton("💰 Fix amount", callback_data="fix_amount")],
             [InlineKeyboardButton("✏️ Fix category", callback_data="fix_category")],
             [InlineKeyboardButton("✏️ Fix type (purchase/return)", callback_data="fix_type")],
             [InlineKeyboardButton("❌ Discard", callback_data="discard")]
