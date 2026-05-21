@@ -356,8 +356,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             append_to_sheet(receipt, drive_link)
             sign = "-" if receipt["type"] == "return" else "+"
             await update.message.reply_text(
-                f"✅ Dashboard receipt saved!
-{receipt['store']} — {sign}${receipt['total']:.2f} ({receipt['category']})"
+                "Dashboard receipt saved! " + receipt["store"] + " " + sign + "$" + f"{receipt['total']:.2f}" + " (" + receipt["category"] + ")"
             )
         except Exception as e:
             logger.error(f"Dashboard save error: {e}")
