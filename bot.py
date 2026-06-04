@@ -574,7 +574,7 @@ async def handle_cancel_reminder(update, text: str):
         await update.message.reply_text("Couldn't find a reminder for " + bill_name + ". Active reminders: " + names)
 
 flask_app = Flask(__name__)
-CORS(flask_app)
+CORS(flask_app, resources={r"/*": {"origins": "*"}})
 
 @flask_app.route('/analyze', methods=['POST'])
 def analyze_endpoint():
@@ -625,32 +625,39 @@ def save_endpoint():
 def health():
     return jsonify({'status': 'ok'})
 
+@flask_app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    return response
 
-def run_telegram():
-    import asyncio
-    async def start_bot():
-        ensure_sheet_headers()
-        app = Application.builder().token(TELEGRAM_TOKEN).build()
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("chatid", chatid))
-        app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-        app.add_handler(CallbackQueryHandler(handle_callback))
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-        global reminders
-        reminders = load_reminders_from_sheet()
-        logger.info(f"Loaded {sum(len(v) for v in reminders.values())} reminders from sheet")
-        scheduler_thread = threading.Thread(target=run_scheduler, args=(app,), daemon=True)
-        scheduler_thread.start()
-        logger.info("Bot is running...")
-        await app.run_polling(allowed_updates=Update.ALL_TYPES)
-    asyncio.run(start_bot())
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=8080)
+
+def main():
+    ensure_sheet_headers()
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("chatid", chatid))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    # Load reminders from sheet on startup
+    global reminders
+    reminders = load_reminders_from_sheet()
+    logger.info(f"Loaded {sum(len(v) for v in reminders.values())} reminders from sheet")
+
+    # Start Flask API server in background
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    logger.info("Flask API running on port 8080")
+
+    # Start reminder scheduler in background
+    scheduler_thread = threading.Thread(target=run_scheduler, args=(app,), daemon=True)
+    scheduler_thread.start()
+    logger.info("Bot is running...")
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
-    # Start Telegram bot in background thread
-    telegram_thread = threading.Thread(target=run_telegram, daemon=True)
-    telegram_thread.start()
-    logger.info("Telegram bot started in background")
-
-    # Run Flask as main process (Railway needs this to be primary)
-    port = int(os.environ.get("PORT", 8080))
-    flask_app.run(host="0.0.0.0", port=port)
+    main()
