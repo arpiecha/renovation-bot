@@ -1,5 +1,7 @@
 import os
 import json
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import logging
 import base64
 import anthropic
@@ -571,6 +573,61 @@ async def handle_cancel_reminder(update, text: str):
         names = ", ".join([r["name"] for r in reminders[chat_id]]) or "none"
         await update.message.reply_text("Couldn't find a reminder for " + bill_name + ". Active reminders: " + names)
 
+flask_app = Flask(__name__)
+CORS(flask_app)
+
+@flask_app.route('/analyze', methods=['POST'])
+def analyze_endpoint():
+    try:
+        if 'photo' not in request.files:
+            return jsonify({'error': 'No photo provided'}), 400
+        
+        file = request.files['photo']
+        image_bytes = file.read()
+        mime_type = file.content_type or 'image/jpeg'
+        
+        import asyncio
+        receipt = asyncio.run(analyze_receipt(image_bytes, mime_type))
+        return jsonify({'success': True, 'receipt': receipt})
+    except Exception as e:
+        logger.error(f"Analyze endpoint error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@flask_app.route('/save', methods=['POST'])
+def save_endpoint():
+    try:
+        data = request.json
+        receipt = {
+            'date': data.get('date'),
+            'store': data.get('store'),
+            'category': data.get('category'),
+            'type': data.get('type'),
+            'total': float(data.get('amount', 0)),
+            'items': data.get('items', '').split(', '),
+            'notes': data.get('notes', '')
+        }
+        
+        image_b64 = data.get('image_base64')
+        if image_b64:
+            image_bytes = base64.b64decode(image_b64)
+            filename = f"receipt_{receipt['store'].replace(' ', '_')}_{receipt['date']}_{int(datetime.now().timestamp())}"
+            drive_link = upload_to_dropbox(image_bytes, filename)
+        else:
+            drive_link = 'Uploaded from dashboard'
+        
+        append_to_sheet(receipt, drive_link)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Save endpoint error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@flask_app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok'})
+
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=8080)
+
 def main():
     ensure_sheet_headers()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -583,6 +640,11 @@ def main():
     global reminders
     reminders = load_reminders_from_sheet()
     logger.info(f"Loaded {sum(len(v) for v in reminders.values())} reminders from sheet")
+
+    # Start Flask API server in background
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    logger.info("Flask API running on port 8080")
 
     # Start reminder scheduler in background
     scheduler_thread = threading.Thread(target=run_scheduler, args=(app,), daemon=True)
