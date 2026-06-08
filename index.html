@@ -506,34 +506,25 @@
       status.textContent = 'Saving...';
 
       try {
-        // Save to Google Sheet via the bot API
-        const sheetResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        const saveResp = await fetch('https://renovation-bot-production.up.railway.app/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 100,
-            messages: [{ role: 'user', content: 'Say only: saved' }]
+            date, store, amount, type, category, items, notes,
+            image_base64: currentImageBase64
           })
         });
 
-        // Append to Google Sheet using public append via our bot's sheet
-        const finalAmount = type === 'return' ? -amount : amount;
-        const row = [date, store, category, type.charAt(0).toUpperCase() + type.slice(1), finalAmount, items, notes, 'Uploaded from dashboard'];
-
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/1TeRJg5VdlFFL-00Zf3MvNDIcdBOZG5TYWUhjD0zmbwM/values/Sheet1!A:H:append?valueInputOption=USER_ENTERED`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ values: [row] })
-        });
+        const saveData = await saveResp.json();
+        if (!saveData.success) throw new Error(saveData.error || 'Server error ' + saveResp.status);
 
         status.className = 'modal-status success';
-        status.textContent = '✅ Receipt saved!';
+        status.textContent = 'Receipt saved!';
         setTimeout(() => { closeModal(); loadData(); }, 1500);
 
       } catch(e) {
         status.className = 'modal-status error';
-        status.textContent = 'Error saving: ' + e.message;
+        status.textContent = 'Error: ' + e.message;
       }
     }
 
