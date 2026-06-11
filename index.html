@@ -173,9 +173,23 @@
 
     <div id="tab-reminders" class="tab-content">
       <div class="section">
+        <div class="section-title">Add Reminder</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div>
+            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Bill Name</label>
+            <input type="text" id="r-name" placeholder="e.g. ComEd, Nicor" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;outline:none;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Due Day (1-31)</label>
+            <input type="number" id="r-day" placeholder="e.g. 15" min="1" max="31" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;outline:none;">
+          </div>
+        </div>
+        <button onclick="addReminderFromDashboard()" style="width:100%;padding:10px;font-size:14px;background:#1a1a1a;color:white;border:none;border-radius:8px;cursor:pointer;font-family:inherit;margin-bottom:8px;">+ Add Reminder</button>
+        <div id="reminder-add-status" style="font-size:13px;text-align:center;display:none;padding:8px;border-radius:8px;"></div>
+      </div>
+      <div class="section">
         <div class="section-title">Bill Reminders</div>
         <div id="reminders-container"><div class="loading">Loading reminders...</div></div>
-        <p style="font-size:12px;color:#888;margin-top:1rem;">To add a reminder, text your Telegram bot: <em>"Remind me to pay ComEd on the 15th"</em></p>
       </div>
     </div>
 
@@ -580,6 +594,46 @@
         </div>`;
       currentImageBase64 = null;
       document.getElementById('upload-modal').classList.add('active');
+    }
+
+    async function addReminderFromDashboard() {
+      const name = document.getElementById('r-name').value.trim();
+      const day = parseInt(document.getElementById('r-day').value);
+      const status = document.getElementById('reminder-add-status');
+
+      if (!name || !day || day < 1 || day > 31) {
+        status.style.display = 'block';
+        status.style.background = '#FAECE7';
+        status.style.color = '#993C1D';
+        status.textContent = 'Please enter a bill name and a valid day (1-31)';
+        return;
+      }
+
+      status.style.display = 'block';
+      status.style.background = '#f0f0ee';
+      status.style.color = '#888';
+      status.textContent = 'Saving...';
+
+      try {
+        const resp = await fetch('https://renovation-bot-production.up.railway.app/add-reminder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, day, chat_id: '717002560' })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.error);
+
+        status.style.background = '#E1F5EE';
+        status.style.color = '#0F6E56';
+        status.textContent = 'Reminder added for ' + name + ' on the ' + day + 'th!';
+        document.getElementById('r-name').value = '';
+        document.getElementById('r-day').value = '';
+        setTimeout(() => { loadReminders(); }, 1000);
+      } catch(e) {
+        status.style.background = '#FAECE7';
+        status.style.color = '#993C1D';
+        status.textContent = 'Error: ' + e.message;
+      }
     }
 
     function checkPwd() {

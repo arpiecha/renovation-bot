@@ -621,6 +621,29 @@ def save_endpoint():
         logger.error(f"Save endpoint error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@flask_app.route('/add-reminder', methods=['POST'])
+def add_reminder_endpoint():
+    try:
+        data = request.json
+        name = data.get('name', '').strip()
+        day = int(data.get('day', 0))
+        chat_id = int(data.get('chat_id', 0))
+
+        if not name or not day or not chat_id:
+            return jsonify({'success': False, 'error': 'Missing fields'}), 400
+
+        if chat_id not in reminders:
+            reminders[chat_id] = []
+
+        reminders[chat_id] = [r for r in reminders[chat_id] if r['name'].lower() != name.lower()]
+        reminders[chat_id].append({'name': name, 'day': day})
+        save_reminders_to_sheet(chat_id, reminders[chat_id])
+
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Add reminder endpoint error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @flask_app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok'})
