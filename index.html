@@ -587,12 +587,37 @@
           <label>Notes</label>
           <input type="text" id="m-notes" placeholder="Optional notes">
         </div>
+        <div class="modal-field">
+          <label>Attach Photo (optional)</label>
+          <input type="file" id="m-photo" accept="image/*" style="font-size:13px;width:100%;">
+          <div id="m-photo-preview" style="margin-top:6px;"></div>
+        </div>
         <div id="modal-status" class="modal-status"></div>
         <div class="modal-actions">
           <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
           <button class="modal-btn modal-btn-confirm" onclick="confirmReceipt()">✅ Save Entry</button>
         </div>`;
       currentImageBase64 = null;
+
+      // Add photo preview listener after rendering
+      setTimeout(() => {
+        const photoInput = document.getElementById('m-photo');
+        if (photoInput) {
+          photoInput.addEventListener('change', async function() {
+            const file = this.files[0];
+            if (!file) return;
+            const dataUrl = await new Promise((res, rej) => {
+              const r = new FileReader();
+              r.onload = () => res(r.result);
+              r.onerror = rej;
+              r.readAsDataURL(file);
+            });
+            currentImageBase64 = dataUrl.split(',')[1];
+            document.getElementById('m-photo-preview').innerHTML =
+              `<img src="${dataUrl}" style="width:100%;max-height:120px;object-fit:contain;border-radius:6px;border:1px solid #eee;">`;
+          });
+        }
+      }, 50);
       document.getElementById('upload-modal').classList.add('active');
     }
 
