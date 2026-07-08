@@ -450,12 +450,12 @@
   <div class="eyebrow">Get in touch</div>
   <h2>Ready to get started?</h2>
   <p class="sub">Fill out the form and Adrian will have you set up within 24 hours.</p>
-  <form class="contact-form" onsubmit="handleSubmit(event)">
+  <form class="contact-form" id="contact-form">
     <input type="text" placeholder="Your name" required>
     <input type="email" placeholder="Email address" required>
     <input type="tel" placeholder="Phone number (optional)">
     <textarea placeholder="Tell me about your project — what are you building?"></textarea>
-    <button type="submit" class="submit-btn">Send Message →</button>
+    <button type="submit" class="submit-btn" id="submit-btn">Send Message →</button>
     <div id="form-success" class="success-msg">Message sent! Adrian will be in touch within 24 hours.</div>
   </form>
 </section>
@@ -558,30 +558,7 @@
     cycle();
   })();
 
-  document.getElementById('contact-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('submit-btn');
-    btn.textContent = 'Sending...';
-    btn.disabled = true;
-    try {
-      const res = await fetch('https://formspree.io/f/mgojkpro', {
-        method: 'POST',
-        headers: { 'Accept': 'application/json' },
-        body: new FormData(this)
-      });
-      if (res.ok) {
-        document.getElementById('form-success').style.display = 'block';
-        this.reset();
-        btn.textContent = 'Sent!';
-      } else {
-        btn.textContent = 'Error — try again';
-        btn.disabled = false;
-      }
-    } catch(e) {
-      btn.textContent = 'Error — try again';
-      btn.disabled = false;
-    }
-  });
+
 </script>
 </body>
 </html>
