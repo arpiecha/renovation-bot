@@ -3,561 +3,678 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MyGCTracker — Let AI handle your job costs.</title>
-  <meta name="description" content="AI-powered receipt tracking for general contractors. Snap a photo, we handle the rest.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <title>2550 Fontana Dr</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --navy:#0D1B2A;--navy2:#132236;--blue:#2563EB;--blue-light:#3B82F6;--cyan:#06B6D4;--white:#FFFFFF;--off:#F8FAFC;--gray:#64748B;--light-gray:#E2E8F0;--text:#1E293B; }
-    html { scroll-behavior: smooth; }
-    body { font-family:'Inter',sans-serif;background:var(--white);color:var(--text);line-height:1.6; }
-    nav { display:flex;align-items:center;justify-content:space-between;padding:1.1rem 2.5rem;background:rgba(13,27,42,0.97);backdrop-filter:blur(10px);position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(255,255,255,0.06); }
-    .logo { font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;color:white;letter-spacing:-0.3px; }
-    .logo span { color:var(--cyan); }
-    .nav-links { display:flex;gap:2rem; }
-    .nav-links a { color:rgba(255,255,255,0.6);text-decoration:none;font-size:14px;font-weight:500;transition:color 0.15s; }
-    .nav-links a:hover { color:white; }
-    .nav-cta { background:var(--blue);color:white;padding:9px 20px;border-radius:7px;font-size:14px;font-weight:600;text-decoration:none; }
-    .nav-cta:hover { background:var(--blue-light); }
-    .hero-wrap { background:var(--navy);padding:5rem 2rem;text-align:center;position:relative;overflow:hidden; }
-    .hero-glow { position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,0.13) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none; }
-    .hero-badge { display:inline-flex;align-items:center;gap:6px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:var(--cyan);font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;padding:5px 12px;border-radius:20px;margin-bottom:1.5rem; }
-    .pulse-dot { width:6px;height:6px;background:var(--cyan);border-radius:50%;animation:pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-    .hero-title { font-family:'Space Grotesk',sans-serif;font-size:clamp(1.8rem,4.5vw,3rem);font-weight:700;color:white;line-height:1.15;letter-spacing:-0.5px;margin-bottom:0.75rem;position:relative;z-index:2; }
-    .hero-title .accent { color:var(--cyan); }
-    .hero-sub { font-size:14px;color:rgba(255,255,255,0.45);max-width:400px;margin:0 auto 2.5rem;line-height:1.7;position:relative;z-index:2; }
-    .phone-stage { display:flex;flex-direction:column;align-items:center;gap:1.5rem;position:relative;z-index:2; }
-    #gc-phone { width:200px;height:400px;background:#1a1a2e;border-radius:32px;border:2px solid rgba(255,255,255,0.12);position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.5);transition:all 0.7s cubic-bezier(0.4,0,0.2,1); }
-    #gc-phone.zoomed { width:280px;height:440px;border-radius:24px; }
-    .phone-notch { position:absolute;top:0;left:50%;transform:translateX(-50%);width:70px;height:20px;background:#1a1a2e;border-radius:0 0 14px 14px;z-index:10; }
-    .phone-screen { width:100%;height:100%;background:#F0EFEB;border-radius:30px;overflow:hidden;position:relative; }
-    #gc-flash { position:absolute;inset:0;background:white;border-radius:30px;opacity:0;pointer-events:none;z-index:20; }
-    .gc-scene { position:absolute;inset:0;opacity:0;transition:opacity 0.4s; }
-    .gc-scene.active { opacity:1; }
-    #gc-s1 { background:#111;border-radius:30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px 12px 12px; }
-    .cam-vf { width:130px;height:130px;border:2px solid white;border-radius:14px;position:relative;overflow:hidden;background:#1a1a1a; }
-    .cam-receipt { position:absolute;inset:8px;background:white;border-radius:4px;padding:6px;font-size:5.5px;color:#333;line-height:1.5;font-family:monospace; }
-    .cam-c { position:absolute;width:14px;height:14px;border-color:#06B6D4;border-style:solid;border-width:0; }
-    .cam-c.tl { top:4px;left:4px;border-top-width:2px;border-left-width:2px;border-radius:2px 0 0 0; }
-    .cam-c.tr { top:4px;right:4px;border-top-width:2px;border-right-width:2px;border-radius:0 2px 0 0; }
-    .cam-c.bl { bottom:4px;left:4px;border-bottom-width:2px;border-left-width:2px;border-radius:0 0 0 2px; }
-    .cam-c.br { bottom:4px;right:4px;border-bottom-width:2px;border-right-width:2px;border-radius:0 0 2px 0; }
-    .cam-hint { color:rgba(255,255,255,0.5);font-size:9px; }
-    .cam-shutter { width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center; }
-    #gc-cambtn { width:34px;height:34px;border-radius:50%;background:white; }
-    #gc-s2 { padding:24px 12px 12px;background:#F0EFEB; }
-    #gc-s3 { padding:24px 12px 12px;background:#F0EFEB; }
-    #gc-s4 { padding:24px 12px 12px;background:#F0EFEB;overflow:hidden; }
-    .sc-hdr { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
-    .sc-title { font-size:12px;font-weight:700;color:#111; }
-    .sc-sub { font-size:8px;color:#888; }
-    .ai-wrap { display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0; }
-    .ai-spin { width:30px;height:30px;border:2.5px solid #E2E8F0;border-top-color:#2563EB;border-radius:50%;animation:gcspin 0.8s linear infinite; }
-    @keyframes gcspin { to{transform:rotate(360deg)} }
-    .ai-lbl { font-size:9px;color:#555;font-weight:500; }
-    .ai-rows { display:flex;flex-direction:column;gap:5px; }
-    .ai-row { display:flex;justify-content:space-between;align-items:center;background:white;border-radius:6px;padding:6px 8px;border:1px solid #eee; }
-    .ai-key { font-size:8px;color:#888; }
-    .ai-val { font-size:9px;font-weight:600;color:#111; }
-    .saved-pill { display:none;background:#E1F5EE;border-radius:6px;padding:5px 8px;font-size:8px;color:#0F6E56;font-weight:600;text-align:center;margin-bottom:8px; }
-    .metrics-grid { display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px; }
-    .m-card { background:white;border-radius:7px;padding:6px;border:1px solid #eee; }
-    .m-lbl { font-size:7px;color:#888;margin-bottom:2px; }
-    .m-val { font-size:11px;font-weight:700;color:#111; }
-    .m-val.g { color:#0F6E56; } .m-val.r { color:#993C1D; }
-    .chart-lbl { font-size:8px;font-weight:700;color:#111;margin-bottom:5px; }
-    .chart-bars { display:flex;align-items:flex-end;gap:5px;height:55px;padding:0 2px;margin-bottom:8px; }
-    .cb-wrap { display:flex;flex-direction:column;align-items:center;flex:1;height:100%;justify-content:flex-end; }
-    .cb { width:100%;border-radius:3px 3px 0 0; }
-    .cb-name { font-size:6px;color:#888;margin-top:2px; }
-    .log-hdr { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
-    .log-title { font-size:12px;font-weight:700;color:#111; }
-    .log-count { font-size:8px;color:#2563EB;font-weight:600; }
-    .receipt-list { display:flex;flex-direction:column;gap:5px; }
-    .r-row { background:white;border-radius:7px;padding:7px 8px;border:1px solid #eee;display:flex;align-items:center;justify-content:space-between; }
-    .r-name { font-size:9px;font-weight:600;color:#111; }
-    .r-meta { font-size:7px;color:#888; }
-    .r-right { display:flex;align-items:center;gap:5px; }
-    .r-amt { font-size:9px;font-weight:600; }
-    .r-amt.pos { color:#0F6E56; } .r-amt.neg { color:#993C1D; }
-    .r-view { font-size:7px;background:#E6F1FB;color:#185FA5;padding:2px 6px;border-radius:4px;font-weight:600;white-space:nowrap; }
-    .r-manual { font-size:7px;background:#F0EFEB;color:#888;padding:2px 6px;border-radius:4px;font-weight:600; }
-    .step-dots { display:flex;gap:20px; }
-    .sdw { display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0.35;transition:opacity 0.4s; }
-    .sdw.active { opacity:1; }
-    .sdot { width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);transition:background 0.3s; }
-    .sdw.active .sdot { background:#06B6D4; }
-    .stxt { font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap; }
-    .sdw.active .stxt { color:rgba(255,255,255,0.9); }
-    .hero-btns { display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:2rem;position:relative;z-index:2; }
-    .btn-primary { background:var(--blue);color:white;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none;transition:background 0.15s; }
-    .btn-primary:hover { background:var(--blue-light); }
-    .btn-ghost { background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.8);padding:14px 28px;border-radius:8px;font-size:15px;font-weight:500;text-decoration:none;border:1px solid rgba(255,255,255,0.12); }
-    .btn-ghost:hover { background:rgba(255,255,255,0.12); }
-    .stats { background:var(--navy2);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);padding:2rem;display:flex;justify-content:center;gap:4rem;flex-wrap:wrap; }
-    .stat { text-align:center; }
-    .stat-num { font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:700;color:var(--cyan); }
-    .stat-label { font-size:13px;color:rgba(255,255,255,0.45);margin-top:2px; }
-    .section { max-width:1040px;margin:0 auto;padding:5.5rem 2rem; }
-    .eyebrow { font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--blue);margin-bottom:0.75rem; }
-    h2 { font-family:'Space Grotesk',sans-serif;font-size:clamp(1.7rem,3.5vw,2.4rem);font-weight:700;letter-spacing:-0.5px;margin-bottom:3rem;line-height:1.2; }
-    .steps { display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem; }
-    .step { padding:2rem;border-radius:12px;border:1px solid var(--light-gray);background:var(--off); }
-    .step-num { font-family:'Space Grotesk',sans-serif;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:var(--blue);text-transform:uppercase;margin-bottom:1rem; }
-    .step h3 { font-size:16px;font-weight:600;margin-bottom:0.5rem; }
-    .step p { font-size:14px;color:var(--gray);line-height:1.65; }
-    .features-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1.25rem; }
-    .feature { padding:1.5rem;border-radius:10px;border:1px solid var(--light-gray);transition:border-color 0.2s,box-shadow 0.2s; }
-    .feature:hover { border-color:var(--blue-light);box-shadow:0 0 0 3px rgba(37,99,235,0.06); }
-    .feature-icon { font-size:1.4rem;margin-bottom:0.75rem; }
-    .feature h3 { font-size:15px;font-weight:600;margin-bottom:0.4rem; }
-    .feature p { font-size:13px;color:var(--gray);line-height:1.65; }
-    .pricing-wrap { background:var(--navy);padding:5.5rem 2rem; }
-    .pricing-inner { max-width:1040px;margin:0 auto; }
-    .pricing-wrap .eyebrow { color:var(--cyan); }
-    .pricing-wrap h2 { color:white; }
-    .pricing-wrap .sub { color:rgba(255,255,255,0.45);font-size:15px;margin-top:-2rem;margin-bottom:3rem; }
-    .pricing-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;max-width:900px; }
-    .price-card { background:var(--navy2);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2rem; }
-    .price-card.featured { border-color:rgba(6,182,212,0.4);background:#132236; }
-    .price-tier { font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:0.5rem; }
-    .price-popular { display:inline-block;background:#06B6D4;color:#0D1B2A;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:3px 10px;border-radius:20px;margin-bottom:0.5rem; }
-    .price-top { display:flex;align-items:flex-end;gap:6px;margin-bottom:0.25rem; }
-    .price-amount { font-family:'Space Grotesk',sans-serif;font-size:2.8rem;font-weight:700;color:white;line-height:1; }
-    .price-mo { font-size:14px;color:rgba(255,255,255,0.4);padding-bottom:5px; }
-    .price-desc { font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:1.5rem; }
-    .price-features { list-style:none;margin-bottom:1.5rem; }
-    .price-features li { font-size:13px;color:rgba(255,255,255,0.7);padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px; }
-    .check { color:var(--cyan);font-size:12px;flex-shrink:0; }
-    .btn-blue { display:block;background:var(--blue);color:white;padding:13px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;text-align:center;transition:background 0.15s; }
-    .btn-blue:hover { background:var(--blue-light); }
-    .contact-section { max-width:560px;margin:0 auto;padding:5.5rem 2rem;text-align:center; }
-    .contact-section h2 { margin-bottom:0.5rem; }
-    .contact-section .sub { color:var(--gray);font-size:15px;margin-bottom:2.5rem; }
-    .contact-form { display:flex;flex-direction:column;gap:12px;text-align:left; }
-    .contact-form input,.contact-form textarea { width:100%;padding:12px 16px;border:1px solid var(--light-gray);border-radius:8px;font-size:14px;font-family:inherit;outline:none;transition:border-color 0.15s; }
-    .contact-form input:focus,.contact-form textarea:focus { border-color:var(--blue); }
-    .contact-form textarea { height:110px;resize:vertical; }
-    .submit-btn { background:var(--blue);color:white;padding:13px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:background 0.15s; }
-    .submit-btn:hover { background:var(--blue-light); }
-    .success-msg { display:none;color:#059669;font-size:14px;text-align:center;padding:10px;background:#F0FDF4;border-radius:8px; }
-    footer { border-top:1px solid var(--light-gray);padding:2rem;text-align:center;font-size:13px;color:var(--gray); }
-    .footer-logo { font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;color:var(--text);margin-bottom:6px; }
-    .footer-logo span { color:var(--blue); }
-    @keyframes gcsnap { 0%{transform:scale(1)} 50%{transform:scale(0.7);background:#ddd} 100%{transform:scale(1)} }
-    @keyframes gcflash { 0%{opacity:0.9} 100%{opacity:0} }
-    @keyframes gcslide { from{transform:translateY(-8px);opacity:0} to{transform:translateY(0);opacity:1} }
-    @media (max-width:640px) { nav{padding:1rem 1.25rem} .nav-links{display:none} .stats{gap:2rem} .section{padding:3.5rem 1.25rem} .pricing-wrap{padding:3.5rem 1.25rem} .contact-section{padding:3.5rem 1.25rem} }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+    .header h1 { font-size: 22px; font-weight: 600; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .last-updated { font-size: 12px; color: #888; }
+    button { padding: 8px 16px; font-size: 13px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #1a1a1a; cursor: pointer; font-family: inherit; }
+    button:hover { background: #f5f5f3; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+    .metric { background: white; border-radius: 10px; padding: 1rem; border: 1px solid #eee; }
+    .metric-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .metric-value { font-size: 22px; font-weight: 600; }
+    .metric-value.green { color: #0F6E56; }
+    .metric-value.red { color: #993C1D; }
+    .section { background: white; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid #eee; }
+    .section-title { font-size: 15px; font-weight: 600; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    th { text-align: left; padding: 6px 8px; color: #888; font-weight: 400; border-bottom: 1px solid #eee; }
+    td { padding: 8px 8px; border-bottom: 1px solid #f0f0f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    .badge { font-size: 11px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
+    .badge-purchase { background: #E1F5EE; color: #0F6E56; }
+    .badge-return { background: #FAECE7; color: #993C1D; }
+    .amount-pos { color: #0F6E56; font-weight: 500; }
+    .amount-neg { color: #993C1D; font-weight: 500; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; font-size: 12px; color: #888; }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .loading { text-align: center; padding: 2rem; color: #888; font-size: 14px; }
+    .error { padding: 1rem; color: #993C1D; background: #FAECE7; border-radius: 8px; font-size: 14px; line-height: 1.6; }
+    .download-btn { width: 100%; margin-top: 1rem; padding: 10px; font-size: 14px; }
+    a { color: #185FA5; }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+    .upload-receipt-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; font-size: 15px; font-weight: 500; background: #1a1a1a; color: white; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; }
+    .manual-entry-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; font-size: 15px; font-weight: 500; background: white; color: #1a1a1a; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-family: inherit; }
+    .manual-entry-btn:hover { background: #f5f5f3; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 1rem; }
+    .modal-field { margin-bottom: 12px; }
+    .modal-field label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; }
+    .modal-field input, .modal-field select { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; outline: none; }
+    .modal-field input:focus, .modal-field select:focus { border-color: #1a1a1a; }
+    .modal-preview { width: 100%; max-height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #eee; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 1rem; }
+    .modal-btn { flex: 1; padding: 10px; font-size: 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 500; }
+    .modal-btn-confirm { background: #1a1a1a; color: white; border: none; }
+    .modal-btn-confirm:hover { background: #333; }
+    .modal-btn-cancel { background: white; color: #1a1a1a; border: 1px solid #ddd; }
+    .modal-btn-cancel:hover { background: #f5f5f3; }
+    .modal-analyzing { text-align: center; padding: 2rem; color: #888; font-size: 14px; }
+    .modal-spinner { width: 24px; height: 24px; border: 2px solid #eee; border-top-color: #888; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .modal-status { padding: 10px; border-radius: 8px; font-size: 13px; margin-top: 8px; display: none; text-align: center; }
+    .modal-status.success { background: #E1F5EE; color: #0F6E56; display: block; }
+    .modal-status.error { background: #FAECE7; color: #993C1D; display: block; }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+    .upload-receipt-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; font-size: 15px; font-weight: 500; background: #1a1a1a; color: white; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; }
+    .upload-receipt-btn:hover { background: #333; }
+    .manual-entry-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; font-size: 15px; font-weight: 500; background: white; color: #1a1a1a; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-family: inherit; }
+    .manual-entry-btn:hover { background: #f5f5f3; }
+    .upload-status { text-align: center; padding: 10px; font-size: 13px; border-radius: 8px; margin-bottom: 1rem; display: none; }
+    .upload-status.success { background: #E1F5EE; color: #0F6E56; }
+    .upload-status.error { background: #FAECE7; color: #993C1D; }
+    .upload-status.loading { background: #f0f0ee; color: #888; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 1rem; }
+    .tab { padding: 8px 18px; font-size: 13px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #888; cursor: pointer; font-family: inherit; }
+    .tab.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .reminder-card { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9f9f8; border-radius: 8px; margin-bottom: 8px; border: 1px solid #eee; }
+    .reminder-name { font-size: 14px; font-weight: 600; }
+    .reminder-due { font-size: 12px; color: #888; margin-top: 2px; }
+    .reminder-badge { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; }
+    .badge-soon { background: #FEF3C7; color: #92400E; }
+    .badge-upcoming { background: #E1F5EE; color: #0F6E56; }
+    .badge-today { background: #FAECE7; color: #993C1D; }
+    @media (max-width: 500px) {
+      .col-photo { display: none; }
+    }
   </style>
 </head>
 <body>
-
-
-<div style="background:#06B6D4;color:#0D1B2A;text-align:center;padding:10px 1rem;font-size:13px;font-weight:600;letter-spacing:0.02em;">
-  🎉 Limited offer — First month free when you sign up this week. <a href="#contact" style="color:#0D1B2A;text-decoration:underline;margin-left:6px;">Claim it →</a>
-</div>
-
-<nav>
-  <div class="logo">My<span>GC</span>Tracker</div>
-  <div class="nav-links">
-    <a href="#how-it-works">How it works</a>
-    <a href="#features">Features</a>
-    <a href="#pricing">Pricing</a>
+  <div id="lock-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f3;">
+    <div style="background:white;padding:2rem;border-radius:12px;border:1px solid #eee;text-align:center;width:280px;">
+      <div style="font-size:24px;margin-bottom:8px;">🏠</div>
+      <h2 style="font-size:16px;font-weight:600;margin-bottom:4px;">2550 Fontana Dr</h2>
+      <p style="font-size:13px;color:#888;margin-bottom:1.5rem;">Enter password to continue</p>
+      <input id="pwd-input" type="password" placeholder="Password" style="width:100%;padding:9px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;font-family:inherit;outline:none;" onkeydown="if(event.key==='Enter')checkPwd()">
+      <button onclick="checkPwd()" style="width:100%;padding:9px;font-size:14px;background:#1a1a1a;color:white;border:none;border-radius:8px;cursor:pointer;font-family:inherit;">Enter</button>
+      <p id="pwd-error" style="color:#993C1D;font-size:12px;margin-top:8px;display:none;">Incorrect password</p>
+    </div>
   </div>
-  <a href="#contact" class="nav-cta">Get Started</a>
-</nav>
-
-<section class="hero-wrap">
-  <div class="hero-glow"></div>
-  <div class="hero-badge"><div class="pulse-dot"></div>AI-Powered · Built for Contractors</div>
-  <h1 class="hero-title">Let AI handle your job costs.<br><span class="accent">You handle the job.</span></h1>
-  <p class="hero-sub">Snap a photo of any receipt. AI reads it in seconds. Your dashboard updates automatically.</p>
-
-  <div class="phone-stage">
-    <div id="gc-phone">
-      <div class="phone-notch"></div>
-      <div class="phone-screen">
-        <div id="gc-flash"></div>
-
-        <div id="gc-s1" class="gc-scene active">
-          <div class="cam-vf">
-            <div class="cam-receipt">HOME DEPOT<br>──────────<br>2x4 Lumber $24.50<br>Box Screws  $8.99<br>PVC Pipe   $12.75<br>──────────<br>TOTAL:     $46.24</div>
-            <div class="cam-c tl"></div><div class="cam-c tr"></div><div class="cam-c bl"></div><div class="cam-c br"></div>
-          </div>
-          <div class="cam-hint">Align receipt in frame</div>
-          <div class="cam-shutter"><div id="gc-cambtn"></div></div>
-        </div>
-
-        <div id="gc-s2" class="gc-scene">
-          <div class="sc-hdr"><div class="sc-title">1041 Arbor Ln</div><div class="sc-sub">AI reading...</div></div>
-          <div class="ai-wrap"><div class="ai-spin"></div><div class="ai-lbl">Analyzing with AI</div></div>
-          <div class="ai-rows">
-            <div class="ai-row"><span class="ai-key">Store</span><span class="ai-val" id="gcv1"></span></div>
-            <div class="ai-row"><span class="ai-key">Amount</span><span class="ai-val" id="gcv2"></span></div>
-            <div class="ai-row"><span class="ai-key">Category</span><span class="ai-val" id="gcv3"></span></div>
-            <div class="ai-row"><span class="ai-key">Items</span><span class="ai-val" id="gcv4"></span></div>
-          </div>
-        </div>
-
-        <div id="gc-s3" class="gc-scene">
-          <div class="sc-hdr"><div class="sc-title">1041 Arbor Ln</div><div class="sc-sub">Updated just now</div></div>
-          <div id="gc-saved" class="saved-pill">✅ Saved — Home Depot $46.24</div>
-          <div class="metrics-grid">
-            <div class="m-card"><div class="m-lbl">Total spent</div><div class="m-val" id="gc-total">$181,223</div></div>
-            <div class="m-card"><div class="m-lbl">Purchases</div><div class="m-val g" id="gc-purch">$182,522</div></div>
-            <div class="m-card"><div class="m-lbl">Returns</div><div class="m-val r">$1,298</div></div>
-            <div class="m-card"><div class="m-lbl">Receipts</div><div class="m-val" id="gc-count">58</div></div>
-          </div>
-          <div class="chart-lbl">Spending by category</div>
-          <div class="chart-bars">
-            <div class="cb-wrap"><div class="cb" style="height:88%;background:#7C6FF7;"></div><div class="cb-name">Mortgage</div></div>
-            <div class="cb-wrap"><div class="cb" id="gc-matbar" style="height:16%;background:#1D9E75;transition:height 0.8s ease;"></div><div class="cb-name">Materials</div></div>
-            <div class="cb-wrap"><div class="cb" style="height:13%;background:#378ADD;"></div><div class="cb-name">Labor</div></div>
-            <div class="cb-wrap"><div class="cb" style="height:2%;background:#888;"></div><div class="cb-name">MISC</div></div>
-          </div>
-        </div>
-
-        <div id="gc-s4" class="gc-scene">
-          <div class="log-hdr"><div class="log-title">Receipt log</div><div class="log-count">59 receipts</div></div>
-          <div class="receipt-list" id="gc-log">
-            <div class="r-row"><div><div class="r-name">Home Depot</div><div class="r-meta">2026-06-08 · Materials</div></div><div class="r-right"><div class="r-amt pos">+$46.24</div><div class="r-view">View</div></div></div>
-            <div class="r-row"><div><div class="r-name">Cash — Labor</div><div class="r-meta">2026-06-07 · Labor</div></div><div class="r-right"><div class="r-amt pos">+$500.00</div><div class="r-manual">Manual</div></div></div>
-            <div class="r-row"><div><div class="r-name">Menards</div><div class="r-meta">2026-06-05 · Materials</div></div><div class="r-right"><div class="r-amt pos">+$183.47</div><div class="r-view">View</div></div></div>
-            <div class="r-row"><div><div class="r-name">ComEd</div><div class="r-meta">2026-06-01 · MISC</div></div><div class="r-right"><div class="r-amt pos">+$94.22</div><div class="r-view">View</div></div></div>
-            <div class="r-row"><div><div class="r-name">Lowe's</div><div class="r-meta">2026-05-30 · Materials</div></div><div class="r-right"><div class="r-amt neg">-$67.00</div><div class="r-view">View</div></div></div>
-            <div class="r-row"><div><div class="r-name">DSP Renovation</div><div class="r-meta">2026-05-28 · Labor</div></div><div class="r-right"><div class="r-amt pos">+$2,400</div><div class="r-view">View</div></div></div>
-          </div>
-        </div>
-
+  <div id="main-content" style="display:none;">
+  <div class="container">
+    <div class="header">
+      <h1>2550 Fontana Dr</h1>
+      <div class="header-right">
+        <span class="last-updated" id="last-updated">Loading...</span>
+        <button onclick="loadData()">Refresh</button>
       </div>
     </div>
 
-    <div class="step-dots">
-      <div class="sdw active" id="gcst1"><div class="sdot"></div><div class="stxt">Snap receipt</div></div>
-      <div class="sdw" id="gcst2"><div class="sdot"></div><div class="stxt">AI reads it</div></div>
-      <div class="sdw" id="gcst3"><div class="sdot"></div><div class="stxt">Dashboard updates</div></div>
-      <div class="sdw" id="gcst4"><div class="sdot"></div><div class="stxt">Receipt log</div></div>
+    <div style="background:white;border-radius:10px;padding:1rem;border:1px solid #eee;margin-bottom:1rem;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:28px;">🏗️</div>
+      <div>
+        <div style="font-size:12px;color:#888;">Project started April 15, 2026</div>
+        <div id="project-timer" style="font-size:18px;font-weight:600;color:#1a1a1a;">--</div>
+      </div>
     </div>
-  </div>
 
-  <div class="hero-btns">
-    <a href="#contact" class="btn-primary">Start Free Trial</a>
-    <a href="#how-it-works" class="btn-ghost">See how it works</a>
-  </div>
-</section>
+    <!-- Upload Receipt Modal -->
+    <div class="modal-overlay" id="upload-modal">
+      <div class="modal">
+        <h2>📸 Upload Receipt</h2>
+        <div id="modal-body">
+          <div class="modal-analyzing">
+            <div class="modal-spinner"></div>
+            Analyzing receipt...
+          </div>
+        </div>
+      </div>
+    </div>
 
-<div class="stats">
-  <div class="stat"><div class="stat-num">2 sec</div><div class="stat-label">To log a receipt</div></div>
-  <div class="stat"><div class="stat-num">80%</div><div class="stat-label">Less bookkeeping time</div></div>
-  <div class="stat"><div class="stat-num">$0</div><div class="stat-label">Lost receipts</div></div>
-  <div class="stat"><div class="stat-num">24/7</div><div class="stat-label">Live job cost dashboard</div></div>
-</div>
+    <input type="file" id="receipt-file-input" accept="image/*" style="display:none">
+    <div class="btn-row">
+      <button class="upload-receipt-btn" onclick="document.getElementById('receipt-file-input').click()">
+        📸 Upload Receipt
+      </button>
+      <button class="manual-entry-btn" onclick="openManualEntry()">
+        ✏️ Manual Entry
+      </button>
+    </div>
 
-<section class="section" id="how-it-works">
-  <div class="eyebrow">How it works</div>
-  <h2>Three steps. Zero spreadsheets.</h2>
-  <div class="steps">
-    <div class="step"><div class="step-num">Step 01</div><h3>Snap the receipt</h3><p>Send a photo to your personal tracking bot on Telegram or upload directly from your phone. Takes 2 seconds at the register.</p></div>
-    <div class="step"><div class="step-num">Step 02</div><h3>AI reads it instantly</h3><p>Our AI extracts the store, amount, date, and items — and auto-categorizes into Materials, Labor, Permits, or whatever fits your job.</p></div>
-    <div class="step"><div class="step-num">Step 03</div><h3>See your costs live</h3><p>Your dashboard updates in real time. See exactly what you've spent by category and download a full report any time.</p></div>
-  </div>
-</section>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('overview')">📊 Overview</button>
+      <button class="tab" onclick="switchTab('reminders')">🔔 Reminders</button>
+    </div>
 
-<section class="section" id="features" style="padding-top:0;">
-  <div class="eyebrow">Features</div>
-  <h2>Everything you need.<br>Nothing you don't.</h2>
-  <div class="features-grid">
-    <div class="feature"><div class="feature-icon">📸</div><h3>AI receipt scanning</h3><p>Printed, handwritten, or digital — our AI reads any receipt accurately and logs it in seconds.</p></div>
-    <div class="feature"><div class="feature-icon">💬</div><h3>Cash payment entry</h3><p>Paid someone cash? Just type it naturally. "Paid plumber $400 today" — AI handles the rest.</p></div>
-    <div class="feature"><div class="feature-icon">📊</div><h3>Live cost dashboard</h3><p>See job costs by category in real time. Always know where your money is going before it's too late.</p></div>
-    <div class="feature"><div class="feature-icon">📥</div><h3>Excel export</h3><p>Download a full expense report any time. Send it straight to your accountant or use it for bids.</p></div>
-    <div class="feature"><div class="feature-icon">🔔</div><h3>Bill reminders</h3><p>Set monthly reminders for recurring bills. Never miss a payment or forget a subcontractor invoice.</p></div>
-    <div class="feature"><div class="feature-icon">☁️</div><h3>Secure photo backup</h3><p>Every receipt photo is stored securely in the cloud. Pull up proof of any purchase, years later.</p></div>
-  </div>
-</section>
+    <div id="tab-overview" class="tab-content active">
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Total spent</div><div class="metric-value" id="m-total">--</div></div>
+      <div class="metric"><div class="metric-label">Purchases</div><div class="metric-value green" id="m-purchases">--</div></div>
+      <div class="metric"><div class="metric-label">Returns</div><div class="metric-value red" id="m-returns">--</div></div>
+      <div class="metric"><div class="metric-label">Receipts</div><div class="metric-value" id="m-count">--</div></div>
+    </div>
 
+    <div class="section">
+      <div class="section-title">Spending by category</div>
+      <div class="legend" id="chart-legend"></div>
+      <div style="position:relative;width:100%;height:260px;">
+        <canvas id="catChart" role="img" aria-label="Bar chart of renovation spending by category"></canvas>
+      </div>
+    </div>
 
-<section style="background:var(--navy);padding:5.5rem 2rem;">
-  <div style="max-width:1040px;margin:0 auto;">
-    <div class="eyebrow" style="color:var(--cyan);">What contractors are saying</div>
-    <h2 style="color:white;margin-bottom:3rem;">Real contractors. Real results.</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;">
+    <div class="section">
+      <div class="section-title">Receipt log</div>
+      <div id="table-container"><div class="loading">Loading receipts...</div></div>
+      <button class="download-btn" onclick="downloadExcel()">Download Excel</button>
+    </div>
+    </div><!-- end tab-overview -->
 
-      <div style="background:#132236;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2rem;">
-        <div style="color:#06B6D4;font-size:1.5rem;margin-bottom:1rem;">❝</div>
-        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.75;margin-bottom:1.5rem;">
-          I used to lose receipts constantly on job sites. MyGCTracker changed everything — I snap a photo right at the register and it's logged instantly. My accountant loves me now.
-        </p>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:42px;height:42px;border-radius:50%;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#06B6D4;">R</div>
+    <div id="tab-reminders" class="tab-content">
+      <div class="section">
+        <div class="section-title">Add Reminder</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
           <div>
-            <div style="font-size:14px;font-weight:600;color:white;">Ronald</div>
-            <div style="font-size:12px;color:rgba(255,255,255,0.4);">Top Design Remodeling · Chicago, IL</div>
+            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Bill Name</label>
+            <input type="text" id="r-name" placeholder="e.g. ComEd, Nicor" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;outline:none;">
           </div>
-        </div>
-      </div>
-
-      <div style="background:#132236;border:1px solid rgba(6,182,212,0.3);border-radius:16px;padding:2rem;">
-        <div style="color:#06B6D4;font-size:1.5rem;margin-bottom:1rem;">❝</div>
-        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.75;margin-bottom:1.5rem;">
-          Running multiple job sites at once means tracking costs is a nightmare. This app lets me see exactly where every dollar is going across all my projects in real time. Worth every penny.
-        </p>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:42px;height:42px;border-radius:50%;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#06B6D4;">D</div>
           <div>
-            <div style="font-size:14px;font-weight:600;color:white;">Damian</div>
-            <div style="font-size:12px;color:rgba(255,255,255,0.4);">DSP Renovation · Chicago, IL</div>
+            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Due Day (1-31)</label>
+            <input type="number" id="r-day" placeholder="e.g. 15" min="1" max="31" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;outline:none;">
           </div>
         </div>
+        <button onclick="addReminderFromDashboard()" style="width:100%;padding:10px;font-size:14px;background:#1a1a1a;color:white;border:none;border-radius:8px;cursor:pointer;font-family:inherit;margin-bottom:8px;">+ Add Reminder</button>
+        <div id="reminder-add-status" style="font-size:13px;text-align:center;display:none;padding:8px;border-radius:8px;"></div>
       </div>
-
-      <div style="background:#132236;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2rem;">
-        <div style="color:#06B6D4;font-size:1.5rem;margin-bottom:1rem;">❝</div>
-        <p style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.75;margin-bottom:1.5rem;">
-          As a developer managing multiple residential projects, job cost tracking was eating up hours every week. MyGCTracker cut that down to minutes. The AI reads even handwritten checks accurately.
-        </p>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:42px;height:42px;border-radius:50%;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#06B6D4;">A</div>
-          <div>
-            <div style="font-size:14px;font-weight:600;color:white;">Arnold</div>
-            <div style="font-size:12px;color:rgba(255,255,255,0.4);">ARP Residential · Chicagoland, IL</div>
-          </div>
-        </div>
+      <div class="section">
+        <div class="section-title">Bill Reminders</div>
+        <div id="reminders-container"><div class="loading">Loading reminders...</div></div>
       </div>
-
     </div>
-  </div>
-</section>
-
-<div class="pricing-wrap" id="pricing">
-  <div class="pricing-inner">
-    <div class="eyebrow">Pricing</div>
-    <h2>Simple, transparent pricing.</h2>
-    <p class="sub">No setup fees. No contracts. Cancel anytime.</p>
-    <div class="pricing-grid">
-
-      <div class="price-card">
-        <div class="price-tier">Starter</div>
-        <div class="price-top"><div class="price-amount">$47</div><div class="price-mo">/month</div></div>
-        <div class="price-desc">1 job site</div>
-        <ul class="price-features">
-          <li><span class="check">✓</span> 1 project dashboard</li>
-          <li><span class="check">✓</span> Unlimited AI receipt scanning</li>
-          <li><span class="check">✓</span> Live job cost tracking</li>
-          <li><span class="check">✓</span> Secure photo backup</li>
-          <li><span class="check">✓</span> Excel export anytime</li>
-          <li><span class="check">✓</span> Full setup included</li>
-        </ul>
-        <a href="#contact" class="btn-blue">Get Started</a>
-      </div>
-
-      <div class="price-card featured">
-        <div class="price-popular">Most Popular</div>
-        <div class="price-tier">Pro</div>
-        <div class="price-top"><div class="price-amount">$77</div><div class="price-mo">/month</div></div>
-        <div class="price-desc">2–6 job sites</div>
-        <ul class="price-features">
-          <li><span class="check">✓</span> Up to 6 project dashboards</li>
-          <li><span class="check">✓</span> Unlimited AI receipt scanning</li>
-          <li><span class="check">✓</span> Live job cost tracking</li>
-          <li><span class="check">✓</span> Secure photo backup</li>
-          <li><span class="check">✓</span> Bill payment reminders</li>
-          <li><span class="check">✓</span> Excel export anytime</li>
-          <li><span class="check">✓</span> Full setup included</li>
-          <li><span class="check">✓</span> Direct support from Adrian</li>
-        </ul>
-        <a href="#contact" class="btn-blue">Get Started</a>
-      </div>
-
-      <div class="price-card">
-        <div class="price-tier">Enterprise</div>
-        <div class="price-top"><div class="price-amount">$127</div><div class="price-mo">/month</div></div>
-        <div class="price-desc">6+ job sites</div>
-        <ul class="price-features">
-          <li><span class="check">✓</span> Unlimited project dashboards</li>
-          <li><span class="check">✓</span> Unlimited AI receipt scanning</li>
-          <li><span class="check">✓</span> Live job cost tracking</li>
-          <li><span class="check">✓</span> Secure photo backup</li>
-          <li><span class="check">✓</span> Bill payment reminders</li>
-          <li><span class="check">✓</span> Excel export anytime</li>
-          <li><span class="check">✓</span> Full setup included</li>
-          <li><span class="check">✓</span> Priority support from Adrian</li>
-        </ul>
-        <a href="#contact" class="btn-blue">Get Started</a>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-
-<section style="max-width:700px;margin:0 auto;padding:5.5rem 2rem;">
-  <div class="eyebrow">FAQ</div>
-  <h2 style="margin-bottom:2rem;">Common questions.</h2>
-  <div style="display:flex;flex-direction:column;gap:0;">
-
-    <details style="border-top:1px solid var(--light-gray);padding:1.25rem 0;">
-      <summary style="font-size:15px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;">
-        How does the setup work? <span style="color:var(--blue);font-size:1.2rem;">+</span>
-      </summary>
-      <p style="font-size:14px;color:var(--gray);line-height:1.7;margin-top:0.75rem;">
-        MyGCTracker handles everything. After you sign up, you'll get a personal Telegram bot set up, a live dashboard for your project, and full onboarding — usually within 24 hours. You don't need to install anything.
-      </p>
-    </details>
-
-    <details style="border-top:1px solid var(--light-gray);padding:1.25rem 0;">
-      <summary style="font-size:15px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;">
-        Does it work for handwritten receipts and checks? <span style="color:var(--blue);font-size:1.2rem;">+</span>
-      </summary>
-      <p style="font-size:14px;color:var(--gray);line-height:1.7;margin-top:0.75rem;">
-        Yes. The AI handles printed receipts, handwritten notes, and checks. If the amount isn't clear, you'll get a prompt to confirm or correct it before it's saved.
-      </p>
-    </details>
-
-    <details style="border-top:1px solid var(--light-gray);padding:1.25rem 0;">
-      <summary style="font-size:15px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;">
-        Can I track multiple job sites? <span style="color:var(--blue);font-size:1.2rem;">+</span>
-      </summary>
-      <p style="font-size:14px;color:var(--gray);line-height:1.7;margin-top:0.75rem;">
-        Yes — the Pro plan covers 2–6 job sites and the Enterprise plan covers unlimited. Each project gets its own dashboard, its own receipt log, and its own spending breakdown.
-      </p>
-    </details>
-
-    <details style="border-top:1px solid var(--light-gray);padding:1.25rem 0;">
-      <summary style="font-size:15px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;">
-        Is my data secure? <span style="color:var(--blue);font-size:1.2rem;">+</span>
-      </summary>
-      <p style="font-size:14px;color:var(--gray);line-height:1.7;margin-top:0.75rem;">
-        Yes. Receipt photos are stored privately in the cloud — only you can access them. Your dashboard is password protected and your expense data lives in your own private Google Sheet.
-      </p>
-    </details>
-
-    <details style="border-top:1px solid var(--light-gray);border-bottom:1px solid var(--light-gray);padding:1.25rem 0;">
-      <summary style="font-size:15px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;">
-        Can I cancel anytime? <span style="color:var(--blue);font-size:1.2rem;">+</span>
-      </summary>
-      <p style="font-size:14px;color:var(--gray);line-height:1.7;margin-top:0.75rem;">
-        Yes. No contracts, no commitments. Cancel any time and you keep all your data.
-      </p>
-    </details>
 
   </div>
-</section>
+  </div>
 
-<section class="contact-section" id="contact">
-  <div class="eyebrow">Get in touch</div>
-  <h2>Ready to get started?</h2>
-  <p class="sub">Fill out the form and Adrian will have you set up within 24 hours.</p>
-  <form class="contact-form" action="https://formspree.io/f/mgojkpro" method="POST">
-    <input type="text" name="name" placeholder="Your name" required>
-    <input type="email" name="email" placeholder="Email address" required>
-    <input type="tel" name="phone" placeholder="Phone number (optional)">
-    <textarea name="message" placeholder="Tell me about your project — what are you building?"></textarea>
-    <button type="submit" class="submit-btn">Send Message →</button>
-  </form>
-</section>
+  <script>
+    const SHEET_ID = '1jQMpzhIHBE_0NQ1y0iOpLCcdSwM0zw2Vojo0wKma6j8';
+    const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Sheet1`;
 
-<footer>
-  <div class="footer-logo">My<span>GC</span>Tracker</div>
-  © 2026 MyGCTracker · Built for contractors, by a contractor.
-</footer>
+    const CAT_COLORS = {
+      'Materials': '#1D9E75',
+      'Labor': '#378ADD',
+      'Mortgage': '#7F77DD',
+      'MISC': '#888780'
+    };
 
-<script>
+    let allReceipts = [];
+    let catChartInstance = null;
 
-  document.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', e => {
-      e.preventDefault();
-      document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
-    });
-  });
+    async function loadData() {
+      document.getElementById('last-updated').textContent = 'Refreshing...';
+      try {
+        const res = await fetch(SHEET_URL);
+        const text = await res.text();
+        const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);/)[1]);
+        const rows = json.table.rows || [];
 
-  (function() {
-    const phone = document.getElementById('gc-phone');
-    const flash = document.getElementById('gc-flash');
-    const cambtn = document.getElementById('gc-cambtn');
-    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-    function showScene(n) {
-      [1,2,3,4].forEach(i => {
-        const s = document.getElementById('gc-s'+i);
-        const st = document.getElementById('gcst'+i);
-        if(s) s.style.opacity = i===n?'1':'0';
-        if(st) {
-          st.style.opacity = i===n?'1':'0.35';
-          const dot = st.querySelector('.sdot');
-          if(dot) dot.style.background = i===n?'#06B6D4':'rgba(255,255,255,0.3)';
-          const txt = st.querySelector('.stxt');
-          if(txt) txt.style.color = i===n?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.5)';
+        if (rows.length === 0) {
+          document.getElementById('table-container').innerHTML = '<div class="loading">No receipts yet — send some photos to your Telegram bot!</div>';
+          document.getElementById('last-updated').textContent = 'No data yet';
+          updateMetrics([]);
+          renderChart([]);
+          return;
+        }
+
+        allReceipts = rows.map(row => ({
+          date: row.c[0]?.v || '',
+          store: row.c[1]?.v || '',
+          category: row.c[2]?.v || 'Other',
+          type: (row.c[3]?.v || 'Purchase').toLowerCase(),
+          amount: parseFloat(row.c[4]?.v) || 0,
+          items: row.c[5]?.v || '',
+          notes: row.c[6]?.v || '',
+          photo: row.c[7]?.v || ''
+        }));
+
+        updateMetrics(allReceipts);
+        renderChart(allReceipts);
+        renderTable(allReceipts);
+        document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+      } catch(e) {
+        document.getElementById('table-container').innerHTML = `<div class="error">Could not load data. Make sure the sheet is shared as "Anyone with the link can view".<br><br>Error: ${e.message}</div>`;
+        document.getElementById('last-updated').textContent = 'Error';
+      }
+    }
+
+    function updateMetrics(receipts) {
+      const purchases = receipts.filter(r => r.type === 'purchase').reduce((s, r) => s + Math.abs(r.amount), 0);
+      const returns = receipts.filter(r => r.type === 'return').reduce((s, r) => s + Math.abs(r.amount), 0);
+      document.getElementById('m-total').textContent = '$' + (purchases - returns).toFixed(2);
+      document.getElementById('m-purchases').textContent = '$' + purchases.toFixed(2);
+      document.getElementById('m-returns').textContent = '$' + returns.toFixed(2);
+      document.getElementById('m-count').textContent = receipts.length;
+    }
+
+    function renderChart(receipts) {
+      const cats = {};
+      receipts.filter(r => r.type === 'purchase').forEach(r => {
+        cats[r.category] = (cats[r.category] || 0) + Math.abs(r.amount);
+      });
+
+      const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+      const labels = sorted.map(([k]) => k);
+      const values = sorted.map(([, v]) => parseFloat(v.toFixed(2)));
+      const colors = labels.map(l => CAT_COLORS[l] || '#888780');
+
+      document.getElementById('chart-legend').innerHTML = labels.map((l, i) =>
+        `<span class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span>${l} $${values[i].toFixed(2)}</span>`
+      ).join('');
+
+      if (catChartInstance) catChartInstance.destroy();
+      catChartInstance = new Chart(document.getElementById('catChart').getContext('2d'), {
+        type: 'bar',
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, borderRadius: 4 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' $' + ctx.parsed.y.toFixed(2) } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#888', font: { size: 12 } } },
+            y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', font: { size: 12 }, callback: v => '$' + v } }
+          }
         }
       });
     }
-    function typeVal(el, text, d) {
-      return new Promise(res => {
-        setTimeout(() => {
-          if(!el) return res();
-          el.textContent = '';
-          let i = 0;
-          const t = setInterval(() => { el.textContent += text[i++]; if(i>=text.length){clearInterval(t);res();} }, 38);
-        }, d);
+
+    function renderTable(receipts) {
+      if (receipts.length === 0) {
+        document.getElementById('table-container').innerHTML = '<div class="loading">No receipts yet</div>';
+        return;
+      }
+      const rows = [...receipts].reverse().map(r => {
+        const isReturn = r.type === 'return';
+        const photoLink = r.photo && r.photo !== 'Photo not saved' ? `<a href="${r.photo}" target="_blank">view</a>` : '';
+        return `<tr>
+          <td style="width:90px">${r.date}</td>
+          <td style="width:130px">${r.store}</td>
+          <td style="width:100px">${r.category}</td>
+          <td style="width:70px"><span class="badge ${isReturn ? 'badge-return' : 'badge-purchase'}">${r.type}</span></td>
+          <td style="width:75px" class="${isReturn ? 'amount-neg' : 'amount-pos'}">${isReturn ? '-' : '+'}$${Math.abs(r.amount).toFixed(2)}</td>
+          <td style="width:180px;color:#888;font-size:12px;">${r.items || ''}</td>
+          <td class="col-photo" style="width:50px">${photoLink}</td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('table-container').innerHTML = `
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th style="width:90px">Date</th>
+              <th style="width:140px">Store</th>
+              <th style="width:120px">Category</th>
+              <th style="width:80px">Type</th>
+              <th style="width:75px">Amount</th>
+              <th style="width:180px">Items</th>
+              <th class="col-photo" style="width:50px">Photo</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function downloadExcel() {
+      if (allReceipts.length === 0) { alert('No data to export yet.'); return; }
+      const ws_data = [
+        ['Date', 'Store', 'Category', 'Type', 'Amount', 'Items', 'Notes', 'Photo'],
+        ...allReceipts.map(r => [r.date, r.store, r.category, r.type, r.amount, r.items, r.notes, r.photo])
+      ];
+      const cats = {};
+      allReceipts.filter(r => r.type === 'purchase').forEach(r => { cats[r.category] = (cats[r.category] || 0) + Math.abs(r.amount); });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws_data), 'Receipts');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Category', 'Total'], ...Object.entries(cats)]), 'By Category');
+      XLSX.writeFile(wb, 'renovation-receipts.xlsx');
+    }
+
+    function updateTimer() {
+      const start = new Date('2026-06-15');
+      const now = new Date();
+      const diff = Math.floor((now - start) / 1000);
+      const days = Math.floor(diff / 86400);
+      const hours = Math.floor((diff % 86400) / 3600);
+      const mins = Math.floor((diff % 3600) / 60);
+      const secs = diff % 60;
+      document.getElementById('project-timer').textContent =
+        days + 'd ' + String(hours).padStart(2,'0') + 'h ' + String(mins).padStart(2,'0') + 'm ' + String(secs).padStart(2,'0') + 's';
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      event.target.classList.add('active');
+      if (tab === 'reminders') loadReminders();
+    }
+
+    async function loadReminders() {
+      const REMINDERS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Reminders`;
+      const container = document.getElementById('reminders-container');
+      container.innerHTML = '<div class="loading">Loading reminders...</div>';
+      try {
+        const res = await fetch(REMINDERS_URL);
+        const text = await res.text();
+        const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);/)[1]);
+        const rows = json.table.rows || [];
+        if (rows.length === 0) {
+          container.innerHTML = '<div class="loading">No reminders set yet. Text your bot to add one!</div>';
+          return;
+        }
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        container.innerHTML = rows.map(row => {
+          const name = row.c[0]?.v || '';
+          const day = parseInt(row.c[1]?.v) || 0;
+          const nextDueRaw = row.c[2]?.v || '';
+          // Handle Google Sheets date format (could be "Date(yyyy,m,d)" or "YYYY-MM-DD")
+          let dueDate;
+          const dateMatch = String(nextDueRaw).match(/Date\((\d+),(\d+),(\d+)\)/);
+          if (dateMatch) {
+            dueDate = new Date(parseInt(dateMatch[1]), parseInt(dateMatch[2]), parseInt(dateMatch[3]));
+          } else {
+            dueDate = new Date(nextDueRaw);
+          }
+          const nextDue = dueDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+          const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+          let badgeClass = 'badge-upcoming';
+          let badgeText = daysUntil + ' days away';
+          if (daysUntil === 0) { badgeClass = 'badge-today'; badgeText = 'Due today!'; }
+          else if (daysUntil <= 5) { badgeClass = 'badge-soon'; badgeText = 'Due in ' + daysUntil + ' days'; }
+          const suffix = day===1?'st':day===2?'nd':day===3?'rd':'th';
+          return `<div class="reminder-card">
+            <div>
+              <div class="reminder-name">🔔 ${name}</div>
+              <div class="reminder-due">Due every ${day}${suffix} of the month · Next: ${nextDue}</div>
+            </div>
+            <span class="reminder-badge ${badgeClass}">${badgeText}</span>
+          </div>`;
+        }).join('');
+      } catch(e) {
+        container.innerHTML = '<div class="loading">Could not load reminders.</div>';
+      }
+    }
+
+    const CATEGORIES = ['Materials', 'Labor', 'Mortgage', 'MISC'];
+    let currentReceiptData = null;
+    let currentImageBase64 = null;
+
+    function fileToBase64(file) {
+      return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(',')[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
       });
     }
-    async function cycle() {
-      showScene(1);
-      phone.classList.remove('zoomed');
-      await delay(1600);
-      cambtn.style.animation = 'gcsnap 0.3s ease forwards';
-      flash.style.animation = 'gcflash 0.4s ease forwards';
-      await delay(420);
-      flash.style.animation = '';
-      cambtn.style.animation = '';
-      await delay(250);
-      phone.classList.add('zoomed');
-      showScene(2);
-      ['gcv1','gcv2','gcv3','gcv4'].forEach(id => { const e = document.getElementById(id); if(e) e.textContent=''; });
-      await typeVal(document.getElementById('gcv1'), 'Home Depot', 500);
-      await typeVal(document.getElementById('gcv2'), '$46.24', 0);
-      await typeVal(document.getElementById('gcv3'), 'Materials', 0);
-      await typeVal(document.getElementById('gcv4'), 'Lumber, screws', 0);
-      await delay(800);
-      showScene(3);
-      const saved = document.getElementById('gc-saved');
-      const total = document.getElementById('gc-total');
-      const purch = document.getElementById('gc-purch');
-      const count = document.getElementById('gc-count');
-      const matbar = document.getElementById('gc-matbar');
-      if(saved) saved.style.display='none';
-      if(total) total.textContent='$181,223';
-      if(purch) purch.textContent='$182,522';
-      if(count) count.textContent='58';
-      if(matbar) matbar.style.height='16%';
-      await delay(500);
-      if(saved){saved.style.display='block';saved.style.animation='gcslide 0.4s ease';}
-      await delay(300);
-      if(total) total.textContent='$181,269';
-      if(purch) purch.textContent='$182,569';
-      if(count) count.textContent='59';
-      if(matbar) matbar.style.height='21%';
-      await delay(2500);
-      showScene(4);
-      const log = document.getElementById('gc-log');
-      if(log){
-        log.style.transition='none';
-        log.style.transform='translateY(0)';
-        await delay(100);
-        log.style.transition='transform 3s ease';
-        log.style.transform='translateY(-130px)';
-        await delay(3200);
-        log.style.transition='none';
-        log.style.transform='translateY(0)';
-      }
-      await delay(600);
-      cycle();
+
+    function fileToDataUrl(file) {
+      return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
     }
-    cycle();
-  })();
 
+    document.getElementById('receipt-file-input').addEventListener('change', async function() {
+      const file = this.files[0];
+      if (!file) return;
 
-</script>
+      // Show modal with spinner
+      document.getElementById('upload-modal').classList.add('active');
+      document.getElementById('modal-body').innerHTML = `
+        <div class="modal-analyzing">
+          <div class="modal-spinner"></div>
+          Analyzing receipt with AI...
+        </div>`;
+
+      try {
+        const [base64, dataUrl] = await Promise.all([fileToBase64(file), fileToDataUrl(file)]);
+        currentImageBase64 = base64;
+
+        const formData = new FormData();
+        formData.append('photo', file);
+
+        const response = await fetch('https://fontana-bot-production.up.railway.app/analyze', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+        const receipt = data.receipt;
+        currentReceiptData = receipt;
+
+        const catOptions = CATEGORIES.map(c => `<option value="${c}" ${c === receipt.category ? 'selected' : ''}>${c}</option>`).join('');
+
+        document.getElementById('modal-body').innerHTML = `
+          <img src="${dataUrl}" class="modal-preview" alt="Receipt">
+          <div class="modal-field">
+            <label>Store</label>
+            <input type="text" id="m-store" value="${receipt.store}">
+          </div>
+          <div class="modal-field">
+            <label>Date</label>
+            <input type="date" id="m-date" value="${receipt.date}">
+          </div>
+          <div class="modal-field">
+            <label>Amount ($)</label>
+            <input type="number" id="m-amount" value="${receipt.total}" step="0.01">
+          </div>
+          <div class="modal-field">
+            <label>Type</label>
+            <select id="m-type">
+              <option value="purchase" ${receipt.type === 'purchase' ? 'selected' : ''}>Purchase</option>
+              <option value="return" ${receipt.type === 'return' ? 'selected' : ''}>Return</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label>Category</label>
+            <select id="m-category">${catOptions}</select>
+          </div>
+          <div class="modal-field">
+            <label>Items</label>
+            <input type="text" id="m-items" value="${receipt.items.join(', ')}">
+          </div>
+          <div class="modal-field">
+            <label>Notes</label>
+            <input type="text" id="m-notes" value="${receipt.notes}">
+          </div>
+          <div id="modal-status" class="modal-status"></div>
+          <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="modal-btn modal-btn-confirm" onclick="confirmReceipt()">✅ Save Receipt</button>
+          </div>`;
+
+      } catch(e) {
+        document.getElementById('modal-body').innerHTML = `
+          <div style="text-align:center;padding:1rem;color:#993C1D;">
+            Could not analyze receipt.<br><small>${e.message}</small>
+          </div>
+          <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Close</button>
+          </div>`;
+      }
+      this.value = '';
+    });
+
+    function closeModal() {
+      document.getElementById('upload-modal').classList.remove('active');
+      currentReceiptData = null;
+      currentImageBase64 = null;
+    }
+
+    async function confirmReceipt() {
+      const store = document.getElementById('m-store').value;
+      const date = document.getElementById('m-date').value;
+      const amount = parseFloat(document.getElementById('m-amount').value) || 0;
+      const type = document.getElementById('m-type').value;
+      const category = document.getElementById('m-category').value;
+      const items = document.getElementById('m-items').value;
+      const notes = document.getElementById('m-notes').value;
+      const status = document.getElementById('modal-status');
+
+      status.className = 'modal-status';
+      status.style.display = 'block';
+      status.style.background = '#f0f0ee';
+      status.style.color = '#888';
+      status.textContent = 'Saving...';
+
+      try {
+        const saveResp = await fetch('https://fontana-bot-production.up.railway.app/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date, store, amount, type, category, items, notes,
+            image_base64: currentImageBase64
+          })
+        });
+
+        const saveData = await saveResp.json();
+        if (!saveData.success) throw new Error(saveData.error || 'Server error ' + saveResp.status);
+
+        status.className = 'modal-status success';
+        status.textContent = 'Receipt saved!';
+        setTimeout(() => { closeModal(); loadData(); }, 1500);
+
+      } catch(e) {
+        status.className = 'modal-status error';
+        status.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function openManualEntry() {
+      const today = new Date().toISOString().split('T')[0];
+      const catOptions = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
+      document.getElementById('modal-body').innerHTML = `
+        <div class="modal-field">
+          <label>Store / Payee</label>
+          <input type="text" id="m-store" placeholder="e.g. Cash payment, contractor name">
+        </div>
+        <div class="modal-field">
+          <label>Date</label>
+          <input type="date" id="m-date" value="${today}">
+        </div>
+        <div class="modal-field">
+          <label>Amount ($)</label>
+          <input type="number" id="m-amount" placeholder="0.00" step="0.01">
+        </div>
+        <div class="modal-field">
+          <label>Type</label>
+          <select id="m-type">
+            <option value="purchase">Purchase</option>
+            <option value="return">Return</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Category</label>
+          <select id="m-category">${catOptions}</select>
+        </div>
+        <div class="modal-field">
+          <label>Items / Description</label>
+          <input type="text" id="m-items" placeholder="e.g. Labor, drywall, pipes">
+        </div>
+        <div class="modal-field">
+          <label>Notes</label>
+          <input type="text" id="m-notes" placeholder="Optional notes">
+        </div>
+        <div class="modal-field">
+          <label>Attach Photo (optional)</label>
+          <input type="file" id="m-photo" accept="image/*" style="font-size:13px;width:100%;">
+          <div id="m-photo-preview" style="margin-top:6px;"></div>
+        </div>
+        <div id="modal-status" class="modal-status"></div>
+        <div class="modal-actions">
+          <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
+          <button class="modal-btn modal-btn-confirm" onclick="confirmReceipt()">✅ Save Entry</button>
+        </div>`;
+      currentImageBase64 = null;
+
+      // Add photo preview listener after rendering
+      setTimeout(() => {
+        const photoInput = document.getElementById('m-photo');
+        if (photoInput) {
+          photoInput.addEventListener('change', async function() {
+            const file = this.files[0];
+            if (!file) return;
+            const dataUrl = await new Promise((res, rej) => {
+              const r = new FileReader();
+              r.onload = () => res(r.result);
+              r.onerror = rej;
+              r.readAsDataURL(file);
+            });
+            currentImageBase64 = dataUrl.split(',')[1];
+            document.getElementById('m-photo-preview').innerHTML =
+              `<img src="${dataUrl}" style="width:100%;max-height:120px;object-fit:contain;border-radius:6px;border:1px solid #eee;">`;
+          });
+        }
+      }, 50);
+      document.getElementById('upload-modal').classList.add('active');
+    }
+
+    async function addReminderFromDashboard() {
+      const name = document.getElementById('r-name').value.trim();
+      const day = parseInt(document.getElementById('r-day').value);
+      const status = document.getElementById('reminder-add-status');
+
+      if (!name || !day || day < 1 || day > 31) {
+        status.style.display = 'block';
+        status.style.background = '#FAECE7';
+        status.style.color = '#993C1D';
+        status.textContent = 'Please enter a bill name and a valid day (1-31)';
+        return;
+      }
+
+      status.style.display = 'block';
+      status.style.background = '#f0f0ee';
+      status.style.color = '#888';
+      status.textContent = 'Saving...';
+
+      try {
+        const resp = await fetch('https://fontana-bot-production.up.railway.app/add-reminder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, day, chat_id: '717002560' })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.error);
+
+        status.style.background = '#E1F5EE';
+        status.style.color = '#0F6E56';
+        status.textContent = 'Reminder added for ' + name + ' on the ' + day + 'th!';
+        document.getElementById('r-name').value = '';
+        document.getElementById('r-day').value = '';
+        setTimeout(() => { loadReminders(); }, 1000);
+      } catch(e) {
+        status.style.background = '#FAECE7';
+        status.style.color = '#993C1D';
+        status.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function checkPwd() {
+      const input = document.getElementById('pwd-input').value;
+      if (input === '15662') {
+        document.getElementById('lock-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        updateTimer();
+        setInterval(updateTimer, 1000);
+        loadData();
+      } else {
+        document.getElementById('pwd-error').style.display = 'block';
+        document.getElementById('pwd-input').value = '';
+      }
+    }
+  </script>
+  </div>
 </body>
 </html>
