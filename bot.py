@@ -113,12 +113,14 @@ def check_duplicate(receipt: dict) -> bool:
             spreadsheetId=GOOGLE_SHEET_ID, range="Sheet1!A:E"
         ).execute()
         rows = result.get("values", [])[1:]  # Skip header
+
         new_store = str(receipt.get("store", "")).strip().lower()
         new_date = str(receipt.get("date", "")).strip()
         try:
             new_amount = round(float(receipt.get("total", 0)), 2)
         except:
             new_amount = 0
+
         for row in rows:
             if len(row) >= 5:
                 existing_date = str(row[0]).strip()
@@ -127,9 +129,15 @@ def check_duplicate(receipt: dict) -> bool:
                     existing_amount = round(float(str(row[4]).replace("$","").replace(",","").strip()), 2)
                 except:
                     existing_amount = -1
-                if (existing_date == new_date and
-                    existing_store == new_store and
-                    abs(existing_amount - new_amount) < 0.01):
+
+                # Match on date + amount (within 1 cent) + store name starts with same word
+                new_store_word = new_store.split()[0] if new_store else ""
+                existing_store_word = existing_store.split()[0] if existing_store else ""
+                same_store = new_store_word == existing_store_word
+                same_date = existing_date == new_date
+                same_amount = abs(existing_amount - new_amount) < 0.01
+
+                if same_date and same_amount and same_store:
                     return True
         return False
     except Exception as e:
