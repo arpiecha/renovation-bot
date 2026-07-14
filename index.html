@@ -540,6 +540,29 @@
         });
 
         const saveData = await saveResp.json();
+        if (saveData.duplicate) {
+          status.style.display = 'block';
+          status.style.background = '#FEF3C7';
+          status.style.color = '#92400E';
+          status.textContent = '⚠️ Duplicate detected — same store, date and amount already exists. Save anyway?';
+          // Add force save button
+          const forceBtn = document.createElement('button');
+          forceBtn.textContent = 'Save anyway';
+          forceBtn.style.cssText = 'margin-top:8px;width:100%;padding:8px;background:#1a1a1a;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;';
+          forceBtn.onclick = async () => {
+            forceBtn.remove();
+            status.textContent = 'Saving...';
+            const r2 = await fetch('https://renovation-bot-production.up.railway.app/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ date, store, amount, type, category, items, notes, image_base64: currentImageBase64, force: true })
+            });
+            const d2 = await r2.json();
+            if (d2.success) { status.className = 'modal-status success'; status.textContent = 'Receipt saved!'; setTimeout(() => { closeModal(); loadData(); }, 1500); }
+          };
+          status.appendChild(forceBtn);
+          return;
+        }
         if (!saveData.success) throw new Error(saveData.error || 'Server error ' + saveResp.status);
 
         status.className = 'modal-status success';

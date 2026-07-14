@@ -106,6 +106,30 @@ def upload_to_dropbox(image_bytes: bytes, filename: str) -> str:
         logger.warning(f"Dropbox upload failed: {e}")
         return "Photo not saved"
 
+def check_duplicate(receipt: dict) -> bool:
+    try:
+        _, sheets_service = get_google_services()
+        result = sheets_service.spreadsheets().values().get(
+            spreadsheetId=GOOGLE_SHEET_ID, range="Sheet1!A:E"
+        ).execute()
+        rows = result.get("values", [])[1:]  # Skip header
+        for row in rows:
+            if len(row) >= 5:
+                existing_date = str(row[0]).strip()
+                existing_store = str(row[1]).strip().lower()
+                existing_amount = str(row[4]).strip()
+                new_store = str(receipt.get("store", "")).strip().lower()
+                new_date = str(receipt.get("date", "")).strip()
+                new_amount = str(receipt.get("total", "")).strip()
+                if (existing_date == new_date and
+                    existing_store == new_store and
+                    existing_amount == new_amount):
+                    return True
+        return False
+    except Exception as e:
+        logger.warning(f"Duplicate check failed: {e}")
+        return False
+
 def append_to_sheet(receipt: dict, drive_link: str):
     _, sheets_service = get_google_services()
     amount = -receipt["total"] if receipt["type"] == "return" else receipt["total"]
@@ -250,6 +274,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 drive_link = "Manual entry - no photo"
                 photo_line = "\n📝 Manual entry — no photo"
+            if check_duplicate(receipt):
+                await query.edit_message_text(
+                    "⚠️ *Duplicate detected!*
+
+A receipt with the same store, date and amount already exists in your sheet.
+
+Do you still want to save it?",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("✅ Save anyway", callback_data="confirm_force")],
+                        [InlineKeyboardButton("❌ Discard", callback_data="discard")]
+                    ])
+                )
+                pending_corrections[chat_id]["duplicate_check"] = True
+                return
             append_to_sheet(receipt, drive_link)
             sign = "-" if receipt["type"] == "return" else "+"
             await query.edit_message_text(
@@ -264,6 +303,28 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Save error: {e}")
             await query.edit_message_text(f"❌ Error saving: {str(e)}\n\nCheck your Google credentials.")
+
+    elif data == "confirm_force":
+        await query.edit_message_text("💾 Saving entry...")
+        try:
+            filename = f"receipt_{receipt['store'].replace(' ', '_')}_{receipt['date']}_{int(datetime.now().timestamp())}"
+            if pending["image_bytes"]:
+                drive_link = upload_to_dropbox(pending["image_bytes"], filename)
+                photo_line = f"\n🗂 [View photo]({drive_link})"
+            else:
+                drive_link = "Manual entry - no photo"
+                photo_line = "\n📝 Manual entry"
+            append_to_sheet(receipt, drive_link)
+            sign = "-" if receipt["type"] == "return" else "+"
+            await query.edit_message_text(
+                "Entry saved! " + receipt["store"] + " " + sign + "$" + f"{receipt['total']:.2f}" + " (" + receipt["category"] + ")" + photo_line,
+                parse_mode="Markdown",
+                disable_web_page_preview=True
+            )
+            del pending_corrections[chat_id]
+        except Exception as e:
+            logger.error(f"Force save error: {e}")
+            await query.edit_message_text(f"Error saving: {str(e)}")
 
     elif data == "fix_amount":
         pending_corrections[chat_id]["awaiting_amount"] = True
@@ -606,6 +667,9 @@ def save_endpoint():
             'items': data.get('items', '').split(', '),
             'notes': data.get('notes', '')
         }
+        force = data.get('force', False)
+        if not force and check_duplicate(receipt):
+            return jsonify({'success': False, 'duplicate': True, 'error': 'Duplicate receipt detected — same store, date and amount already exists.'})
         
         image_b64 = data.get('image_base64')
         if image_b64:
