@@ -276,11 +276,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 photo_line = "\n📝 Manual entry — no photo"
             if check_duplicate(receipt):
                 await query.edit_message_text(
-                    "⚠️ *Duplicate detected!*
+                    "Duplicate detected! A receipt with the same store, date and amount already exists. Save anyway?",
 
-A receipt with the same store, date and amount already exists in your sheet.
 
-Do you still want to save it?",
                     parse_mode="Markdown",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("✅ Save anyway", callback_data="confirm_force")],
