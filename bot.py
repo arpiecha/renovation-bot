@@ -130,14 +130,18 @@ def check_duplicate(receipt: dict) -> bool:
                 except:
                     existing_amount = -1
 
-                # Match on date + amount (within 1 cent) + store name starts with same word
+                # Check amount first (most unique identifier)
+                same_amount = abs(existing_amount - new_amount) < 0.01
+                if not same_amount:
+                    continue
+
+                # Amount matches — now check store (first word)
                 new_store_word = new_store.split()[0] if new_store else ""
                 existing_store_word = existing_store.split()[0] if existing_store else ""
                 same_store = new_store_word == existing_store_word
-                same_date = existing_date == new_date
-                same_amount = abs(existing_amount - new_amount) < 0.01
 
-                if same_date and same_amount and same_store:
+                # Amount + store match = duplicate (date not required)
+                if same_amount and same_store:
                     return True
         return False
     except Exception as e:
@@ -186,7 +190,7 @@ async def analyze_receipt(image_bytes: bytes, mime_type: str) -> dict:
     b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
     logger.info(f"Sending image to Claude, size: {len(image_bytes)} bytes, mime: {mime_type}")
     message = client.messages.create(
-        model="claude-sonnet-4-5",
+        model="claude-sonnet-5",
         max_tokens=1000,
         system=SYSTEM_PROMPT,
         messages=[{
@@ -386,7 +390,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def parse_manual_entry(text: str) -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-sonnet-4-5",
+        model="claude-sonnet-5",
         max_tokens=500,
         system="""You are a receipt parser. The user will describe a purchase in natural language.
 Extract details and respond ONLY with a JSON object, no markdown, no extra text:
@@ -526,7 +530,7 @@ async def handle_reminder_request(update, text: str):
     try:
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         message = client.messages.create(
-            model="claude-sonnet-4-5",
+            model="claude-sonnet-5",
             max_tokens=200,
             system='You extract bill reminder info. Always respond with ONLY this JSON format, nothing else: {"name": "BillName", "day": 15} where day is an integer between 1-31. If the user says "15th" the day is 15. If the user says "1st" the day is 1. Never return null for day.',
             messages=[{"role": "user", "content": text}]
@@ -627,7 +631,7 @@ async def handle_cancel_reminder(update, text: str):
     # Use AI to figure out which bill to cancel
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-sonnet-4-5",
+        model="claude-sonnet-5",
         max_tokens=100,
         system='Extract the bill name the user wants to cancel. Respond ONLY with the bill name, nothing else. Example: "ComEd" or "Nicor" or "Mortgage".',
         messages=[{"role": "user", "content": text}]
