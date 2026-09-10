@@ -6,29 +6,34 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>1041 Arbor Ln — MyGCTracker</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GCTracker">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     input, select, textarea { font-size: 16px !important; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F8FAFC; color: #111827; font-family: 'Inter', -apple-system, sans-serif; min-height: 100vh; }
+    input[type="date"] { max-width: 100%; width: 100%; -webkit-appearance: none; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F8FAFC; color: #1E293B; min-height: 100vh; }
     .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
     .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
     .header h1 { font-size: 22px; font-weight: 600; }
     .header-right { display: flex; align-items: center; gap: 10px; }
-    .last-updated { font-size: 12px; color: #888; }
+    .last-updated { font-size: 12px; color: #64748B; }
     button { padding: 8px 16px; font-size: 13px; border: 1px solid #E2E8F0; border-radius: 6px; background: white; color: #0D1B2A; cursor: pointer; font-family: inherit; }
     button:hover { background: #F1F5F9; }
     .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
     .metric { background: white; border-radius: 8px; padding: 1rem; border: 1px solid #E2E8F0; }
-    .metric-label { font-size: 11px; color: #6B7280; margin-bottom: 4px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+    .metric-label { font-size: 11px; color: #64748B; margin-bottom: 4px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
     .metric-value { font-size: 22px; font-weight: 600; }
     .metric-value.green { color: #059669; }
     .metric-value.red { color: #DC2626; }
     .section { background: white; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; border: 1px solid #E2E8F0; }
     .section-title { font-size: 15px; font-weight: 600; margin-bottom: 1rem; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-    th { text-align: left; padding: 6px 8px; color: #6B7280; font-weight: 600; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid #E5E7EB; }
+    th { text-align: left; padding: 6px 8px; color: #64748B; font-weight: 600; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid #E5E7EB; }
     td { padding: 8px 8px; border-bottom: 1px solid #F3F4F6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     tr:last-child td { border-bottom: none; }
     .badge { font-size: 11px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
@@ -36,7 +41,7 @@
     .badge-return { background: #FEE2E2; color: #991B1B; }
     .amount-pos { color: #059669; font-weight: 600; }
     .amount-neg { color: #DC2626; font-weight: 600; }
-    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; font-size: 12px; color: #888; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; font-size: 12px; color: #64748B; }
     .legend-item { display: flex; align-items: center; gap: 4px; }
     .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
     .loading { text-align: center; padding: 2rem; color: #9CA3AF; font-size: 14px; }
@@ -49,42 +54,42 @@
     .manual-entry-btn:hover { background: #F1F5F9; }
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
     .modal-overlay.active { display: flex; }
-    .modal { background: white; border-radius: 10px; padding: 1.5rem; width: 90%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+    .modal { background: white; border-radius: 10px; max-width: calc(100vw - 2rem); overflow-x: hidden; padding: 1.5rem; width: 90%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
     .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 1rem; }
     .modal-field { margin-bottom: 12px; }
-    .modal-field label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; }
-    .modal-field input, .modal-field select { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; outline: none; }
+    .modal-field label { font-size: 12px; color: #64748B; display: block; margin-bottom: 4px; }
+    .modal-field input, .modal-field select { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid #E2E8F0; border-radius: 8px; font-family: inherit; outline: none; }
     .modal-field input:focus, .modal-field select:focus { border-color: #0D1B2A; }
-    .modal-preview { width: 100%; max-height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #eee; }
+    .modal-preview { width: 100%; max-height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #E2E8F0; }
     .modal-actions { display: flex; gap: 8px; margin-top: 1rem; }
     .modal-btn { flex: 1; padding: 10px; font-size: 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 500; }
     .modal-btn-confirm { background: #0D1B2A; color: white; border: none; }
     .modal-btn-confirm:hover { background: #132236; }
-    .modal-btn-cancel { background: white; color: #1a1a1a; border: 1px solid #ddd; }
+    .modal-btn-cancel { background: white; color: #1E293B; border: 1px solid #E2E8F0; }
     .modal-btn-cancel:hover { background: #F1F5F9; }
-    .modal-analyzing { text-align: center; padding: 2rem; color: #888; font-size: 14px; }
+    .modal-analyzing { text-align: center; padding: 2rem; color: #64748B; font-size: 14px; }
     .modal-spinner { width: 24px; height: 24px; border: 2px solid #E5E7EB; border-top-color: #2563EB; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .modal-status { padding: 10px; border-radius: 8px; font-size: 13px; margin-top: 8px; display: none; text-align: center; }
-    .modal-status.success { background: #E1F5EE; color: #0F6E56; display: block; }
-    .modal-status.error { background: #FAECE7; color: #993C1D; display: block; }
+    .modal-status.success { background: #D1FAE5; color: #059669; display: block; }
+    .modal-status.error { background: #FEE2E2; color: #DC2626; display: block; }
     .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
     .upload-receipt-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; font-size: 14px; font-weight: 600; background: #0D1B2A; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; letter-spacing: 0.03em; }
-    .upload-receipt-btn:hover { background: #333; }
+    .upload-receipt-btn:hover { background: #132236; }
     .manual-entry-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; font-size: 14px; font-weight: 500; background: white; color: #0D1B2A; border: 1px solid #E2E8F0; border-radius: 6px; cursor: pointer; font-family: inherit; }
     .manual-entry-btn:hover { background: #F1F5F9; }
     .upload-status { text-align: center; padding: 10px; font-size: 13px; border-radius: 8px; margin-bottom: 1rem; display: none; }
-    .upload-status.success { background: #E1F5EE; color: #0F6E56; }
-    .upload-status.error { background: #FAECE7; color: #993C1D; }
-    .upload-status.loading { background: #f0f0ee; color: #888; }
+    .upload-status.success { background: #D1FAE5; color: #059669; }
+    .upload-status.error { background: #FEE2E2; color: #DC2626; }
+    .upload-status.loading { background: #F8FAFC; color: #64748B; }
     .tabs { display: flex; gap: 4px; margin-bottom: 1rem; }
-    .tab { padding: 8px 18px; font-size: 13px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #888; cursor: pointer; font-family: inherit; }
+    .tab { padding: 8px 18px; font-size: 13px; border: 1px solid #E2E8F0; border-radius: 8px; background: white; color: #64748B; cursor: pointer; font-family: inherit; }
     .tab.active { background: #0D1B2A; color: white; border-color: #0D1B2A; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    .reminder-card { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9f9f8; border-radius: 8px; margin-bottom: 8px; border: 1px solid #eee; }
+    .reminder-card { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #F8FAFC; border-radius: 8px; margin-bottom: 8px; border: 1px solid #E2E8F0; }
     .reminder-name { font-size: 14px; font-weight: 600; }
-    .reminder-due { font-size: 12px; color: #888; margin-top: 2px; }
+    .reminder-due { font-size: 12px; color: #64748B; margin-top: 2px; }
     .reminder-badge { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px; }
     .badge-soon { background: #FEF3C7; color: #92400E; }
     .badge-upcoming { background: #D1FAE5; color: #065F46; }
@@ -95,14 +100,14 @@
   </style>
 </head>
 <body>
-  <div id="lock-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f3;">
-    <div style="background:white;padding:2rem;border-radius:12px;border:1px solid #eee;text-align:center;width:280px;">
+  <div id="lock-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#F8FAFC;">
+    <div style="background:white;padding:2rem;border-radius:12px;border:1px solid #E2E8F0;text-align:center;width:280px;">
       <div style="font-size:24px;margin-bottom:8px;">🏠</div>
       <h2 style="font-size:16px;font-weight:600;margin-bottom:4px;">1041 Arbor Ln</h2>
-      <p style="font-size:13px;color:#888;margin-bottom:1.5rem;">Enter password to continue</p>
-      <input id="pwd-input" type="password" placeholder="Password" style="width:100%;padding:9px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;font-family:inherit;outline:none;" onkeydown="if(event.key==='Enter')checkPwd()">
-      <button onclick="checkPwd()" style="width:100%;padding:9px;font-size:14px;background:#1a1a1a;color:white;border:none;border-radius:8px;cursor:pointer;font-family:inherit;">Enter</button>
-      <p id="pwd-error" style="color:#993C1D;font-size:12px;margin-top:8px;display:none;">Incorrect password</p>
+      <p style="font-size:13px;color:#64748B;margin-bottom:1.5rem;">Enter password to continue</p>
+      <input id="pwd-input" type="password" placeholder="Password" style="width:100%;padding:9px 12px;font-size:14px;border:1px solid #E2E8F0;border-radius:8px;margin-bottom:10px;font-family:inherit;outline:none;" onkeydown="if(event.key==='Enter')checkPwd()">
+      <button onclick="checkPwd()" style="width:100%;padding:9px;font-size:14px;background:#0D1B2A;color:white;border:none;border-radius:8px;cursor:pointer;font-family:inherit;">Enter</button>
+      <p id="pwd-error" style="color:#DC2626;font-size:12px;margin-top:8px;display:none;">Incorrect password</p>
     </div>
   </div>
   <div id="main-content" style="display:none;">
@@ -115,11 +120,22 @@
       </div>
     </div>
 
-    <div style="background:white;border-radius:10px;padding:1rem;border:1px solid #eee;margin-bottom:1rem;display:flex;align-items:center;gap:12px;">
-      <div style="font-size:28px;">🏗️</div>
-      <div>
-        <div style="font-size:12px;color:#888;">Project started April 15, 2026</div>
-        <div id="project-timer" style="font-size:18px;font-weight:600;color:#1a1a1a;">--</div>
+    <div style="background:white;border-radius:10px;padding:1rem;border:1px solid #E2E8F0;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:28px;">🏗️</div>
+        <div>
+          <div style="font-size:12px;color:#64748B;" id="start-date-label">Project started <span id="start-date-display">--</span></div>
+          <div id="project-timer" style="font-size:18px;font-weight:600;color:#0D1B2A;">--</div>
+        </div>
+      </div>
+      <button onclick="showDatePicker()" style="font-size:12px;padding:6px 12px;border:1px solid #E2E8F0;border-radius:6px;background:white;color:#0D1B2A;cursor:pointer;font-weight:500;white-space:nowrap;">📅 Set Start Date</button>
+    </div>
+    <div id="date-picker-wrap" style="display:none;background:white;border-radius:10px;padding:1rem;border:1px solid #E2E8F0;margin-bottom:1rem;">
+      <div style="font-size:13px;font-weight:500;color:#0D1B2A;margin-bottom:8px;">Set Project Start Date</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="start-date-input" style="flex:1;padding:8px 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:14px;font-family:inherit;outline:none;">
+        <button onclick="saveStartDate()" style="padding:8px 16px;background:#0D1B2A;color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Save</button>
+        <button onclick="document.getElementById('date-picker-wrap').style.display='none'" style="padding:8px 12px;border:1px solid #E2E8F0;border-radius:6px;background:white;font-size:13px;cursor:pointer;">Cancel</button>
       </div>
     </div>
 
@@ -179,12 +195,12 @@
         <div class="section-title">Add Reminder</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
           <div>
-            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Bill Name</label>
-            <input type="text" id="r-name" placeholder="e.g. ComEd, Nicor" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;outline:none;">
+            <label style="font-size:12px;color:#64748B;display:block;margin-bottom:4px;">Bill Name</label>
+            <input type="text" id="r-name" placeholder="e.g. ComEd, Nicor" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #E2E8F0;border-radius:8px;font-family:inherit;outline:none;">
           </div>
           <div>
-            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Due Day (1-31)</label>
-            <input type="number" id="r-day" placeholder="e.g. 15" min="1" max="31" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;outline:none;">
+            <label style="font-size:12px;color:#64748B;display:block;margin-bottom:4px;">Due Day (1-31)</label>
+            <input type="number" id="r-day" placeholder="e.g. 15" min="1" max="31" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #E2E8F0;border-radius:8px;font-family:inherit;outline:none;">
           </div>
         </div>
         <button onclick="addReminderFromDashboard()" style="width:100%;padding:10px;font-size:14px;background:#0D1B2A;color:white;border:none;border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:8px;font-weight:600;">+ Add Reminder</button>
@@ -303,7 +319,7 @@
           <td style="width:100px">${r.category}</td>
           <td style="width:70px"><span class="badge ${isReturn ? 'badge-return' : 'badge-purchase'}">${r.type}</span></td>
           <td style="width:75px" class="${isReturn ? 'amount-neg' : 'amount-pos'}">${isReturn ? '-' : '+'}$${Math.abs(r.amount).toFixed(2)}</td>
-          <td style="width:180px;color:#888;font-size:12px;">${r.items || ''}</td>
+          <td style="width:180px;color:#64748B;font-size:12px;">${r.items || ''}</td>
           <td class="col-photo" style="width:50px">${photoLink}</td>
         </tr>`;
       }).join('');
@@ -339,8 +355,39 @@
       XLSX.writeFile(wb, 'renovation-receipts.xlsx');
     }
 
+    function showDatePicker() {
+      const wrap = document.getElementById('date-picker-wrap');
+      wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+    }
+
+    const DEFAULT_START_DATE = '2026-04-15';
+
+    async function saveStartDate() {
+      const input = document.getElementById('start-date-input').value;
+      if (!input) return;
+      try {
+        localStorage.setItem('project_start_date', input);
+      } catch(e) {}
+      document.getElementById('date-picker-wrap').style.display = 'none';
+      loadStartDate();
+      updateTimer();
+    }
+
+    async function loadStartDate() {
+      let dateStr = DEFAULT_START_DATE;
+      try {
+        const saved = localStorage.getItem('project_start_date');
+        if (saved) dateStr = saved;
+      } catch(e) {}
+      const d = new Date(dateStr + 'T00:00:00');
+      const formatted = d.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+      document.getElementById('start-date-display').textContent = formatted;
+      document.getElementById('start-date-input').value = dateStr;
+      window._projectStartDate = dateStr;
+    }
+
     function updateTimer() {
-      const start = new Date('2026-04-15');
+      const start = new Date((window._projectStartDate || DEFAULT_START_DATE) + 'T00:00:00');
       const now = new Date();
       const diff = Math.floor((now - start) / 1000);
       const days = Math.floor(diff / 86400);
@@ -500,7 +547,7 @@
 
       } catch(e) {
         document.getElementById('modal-body').innerHTML = `
-          <div style="text-align:center;padding:1rem;color:#993C1D;">
+          <div style="text-align:center;padding:1rem;color:#DC2626;">
             Could not analyze receipt.<br><small>${e.message}</small>
           </div>
           <div class="modal-actions">
@@ -551,7 +598,7 @@
           // Add force save button
           const forceBtn = document.createElement('button');
           forceBtn.textContent = 'Save anyway';
-          forceBtn.style.cssText = 'margin-top:8px;width:100%;padding:8px;background:#1a1a1a;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;';
+          forceBtn.style.cssText = 'margin-top:8px;width:100%;padding:8px;background:#0D1B2A;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;';
           forceBtn.onclick = async () => {
             forceBtn.remove();
             status.textContent = 'Saving...';
@@ -640,7 +687,7 @@
             });
             currentImageBase64 = dataUrl.split(',')[1];
             document.getElementById('m-photo-preview').innerHTML =
-              `<img src="${dataUrl}" style="width:100%;max-height:120px;object-fit:contain;border-radius:6px;border:1px solid #eee;">`;
+              `<img src="${dataUrl}" style="width:100%;max-height:120px;object-fit:contain;border-radius:6px;border:1px solid #E2E8F0;">`;
           });
         }
       }, 50);
@@ -692,8 +739,7 @@
       if (input === '15662') {
         document.getElementById('lock-screen').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
-        updateTimer();
-        setInterval(updateTimer, 1000);
+        loadStartDate().then(() => { updateTimer(); setInterval(updateTimer, 1000); });
         loadData();
       } else {
         document.getElementById('pwd-error').style.display = 'block';
