@@ -229,6 +229,32 @@
     let allReceipts = [];
     let catChartInstance = null;
 
+    // A date cell comes back from the Sheets gviz feed as the string
+    // "Date(2026,8,11)" — month zero-based — which is what used to land in the
+    // table. Keep dates as YYYY-MM-DD internally so they sort and export
+    // properly, and show them as MM-DD-YYYY.
+    function sheetDate(cell) {
+      const raw = cell?.v;
+      if (typeof raw === 'string') {
+        const m = raw.match(/^Date\((\d+),(\d+),(\d+)/);
+        if (m) {
+          const pad = n => String(n).padStart(2, '0');
+          return `${m[1]}-${pad(+m[2] + 1)}-${pad(+m[3])}`;
+        }
+        return raw.trim();
+      }
+      if (raw instanceof Date) {
+        const pad = n => String(n).padStart(2, '0');
+        return `${raw.getFullYear()}-${pad(raw.getMonth() + 1)}-${pad(raw.getDate())}`;
+      }
+      return cell?.f || '';
+    }
+
+    function showDate(value) {
+      const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? `${m[2]}-${m[3]}-${m[1]}` : (value || '');
+    }
+
     async function loadData() {
       document.getElementById('last-updated').textContent = 'Refreshing...';
       try {
@@ -246,7 +272,7 @@
         }
 
         allReceipts = rows.map(row => ({
-          date: row.c[0]?.v || '',
+          date: sheetDate(row.c[0]),
           store: row.c[1]?.v || '',
           category: row.c[2]?.v || 'Other',
           type: (row.c[3]?.v || 'Purchase').toLowerCase(),
@@ -314,7 +340,7 @@
         const isReturn = r.type === 'return';
         const photoLink = r.photo && r.photo !== 'Photo not saved' ? `<a href="${r.photo}" target="_blank">view</a>` : '';
         return `<tr>
-          <td style="width:90px">${r.date}</td>
+          <td style="width:90px">${showDate(r.date)}</td>
           <td style="width:130px">${r.store}</td>
           <td style="width:100px">${r.category}</td>
           <td style="width:70px"><span class="badge ${isReturn ? 'badge-return' : 'badge-purchase'}">${r.type}</span></td>
