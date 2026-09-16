@@ -178,9 +178,10 @@
     <div class="section">
       <div class="section-title">Spending by category</div>
       <div class="legend" id="chart-legend"></div>
-      <div style="position:relative;width:100%;height:260px;">
+      <div id="chart-box" style="position:relative;width:100%;height:260px;">
         <canvas id="catChart" role="img" aria-label="Bar chart of renovation spending by category"></canvas>
       </div>
+      <div id="chart-note" class="error" style="display:none;">Chart could not load. The totals above and the log below are unaffected.</div>
     </div>
 
     <div class="section">
@@ -282,9 +283,13 @@
           photo: row.c[7]?.v || ''
         }));
 
-        updateMetrics(allReceipts);
-        renderChart(allReceipts);
-        renderTable(allReceipts);
+        try { updateMetrics(allReceipts); } catch (e) { console.error('metrics', e); }
+        try { renderChart(allReceipts); } catch (e) { console.error('chart', e); chartUnavailable(); }
+        try { renderTable(allReceipts); } catch (e) {
+          console.error('table', e);
+          document.getElementById('table-container').innerHTML =
+            `<div class="error">Could not show the receipt log.<br><br>Error: ${e.message}</div>`;
+        }
         document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
       } catch(e) {
         document.getElementById('table-container').innerHTML = `<div class="error">Could not load data. Make sure the sheet is shared as "Anyone with the link can view".<br><br>Error: ${e.message}</div>`;
@@ -299,6 +304,13 @@
       document.getElementById('m-purchases').textContent = '$' + purchases.toFixed(2);
       document.getElementById('m-returns').textContent = '$' + returns.toFixed(2);
       document.getElementById('m-count').textContent = receipts.length;
+    }
+
+    function chartUnavailable() {
+      const box = document.getElementById('chart-box');
+      const note = document.getElementById('chart-note');
+      if (box) box.style.display = 'none';
+      if (note) note.style.display = 'block';
     }
 
     function renderChart(receipts) {
@@ -316,6 +328,7 @@
         `<span class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span>${l} $${values[i].toFixed(2)}</span>`
       ).join('');
 
+      if (typeof Chart === 'undefined') return chartUnavailable();   // CDN blocked or slow
       if (catChartInstance) catChartInstance.destroy();
       catChartInstance = new Chart(document.getElementById('catChart').getContext('2d'), {
         type: 'bar',
