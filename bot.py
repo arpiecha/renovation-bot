@@ -106,7 +106,27 @@ def upload_to_dropbox(image_bytes: bytes, filename: str) -> str:
         logger.warning(f"Dropbox upload failed: {e}")
         return "Photo not saved"
 
+def normalize_date(value) -> str:
+    """A date as YYYY-MM-DD, whatever shape the sheet hands back.
+
+    Rows are written with USER_ENTERED, so Sheets turns "2026-09-11" into a
+    real date cell and reads it back in the sheet's own format ("9/11/2026").
+    Comparing the raw strings would never match, so both sides come through
+    here first.
+    """
+    text = str(value).strip()
+    if not text:
+        return ""
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%Y/%m/%d", "%d/%m/%Y", "%m-%d-%Y", "%b %d, %Y", "%B %d, %Y"):
+        try:
+            return datetime.strptime(text, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return text   # unparseable: compare as-is rather than guess
+
+
 def check_duplicate(receipt: dict) -> bool:
+    """Flag a receipt whose total AND date both match one already in the sheet."""
     try:
         _, sheets_service = get_google_services()
         result = sheets_service.spreadsheets().values().get(
@@ -114,34 +134,34 @@ def check_duplicate(receipt: dict) -> bool:
         ).execute()
         rows = result.get("values", [])[1:]  # Skip header
 
-        new_store = str(receipt.get("store", "")).strip().lower()
-        new_date = str(receipt.get("date", "")).strip()
+        new_date = normalize_date(receipt.get("date", ""))
         try:
-            new_amount = round(float(receipt.get("total", 0)), 2)
+            # Compare whole cents: 66.54 and 66.55 are different receipts, and
+            # subtracting floats puts them 0.00999... apart, inside any epsilon.
+            total = float(receipt.get("total", 0))
+            # Returns are written to the sheet negative, so sign this the same
+            # way or a re-sent return could never match its own row.
+            if str(receipt.get("type", "")).lower() == "return":
+                total = -abs(total)
+            new_cents = round(total * 100)
         except:
-            new_amount = 0
+            new_cents = 0
 
         for row in rows:
             if len(row) >= 5:
-                existing_date = str(row[0]).strip()
-                existing_store = str(row[1]).strip().lower()
                 try:
-                    existing_amount = round(float(str(row[4]).replace("$","").replace(",","").strip()), 2)
+                    existing_cents = round(float(str(row[4]).replace("$","").replace(",","").strip()) * 100)
                 except:
-                    existing_amount = -1
+                    existing_cents = None
 
                 # Check amount first (most unique identifier)
-                same_amount = abs(existing_amount - new_amount) < 0.01
-                if not same_amount:
+                if existing_cents != new_cents:
                     continue
 
-                # Amount matches — now check store (first word)
-                new_store_word = new_store.split()[0] if new_store else ""
-                existing_store_word = existing_store.split()[0] if existing_store else ""
-                same_store = new_store_word == existing_store_word
-
-                # Amount + store match = duplicate (date not required)
-                if same_amount and same_store:
+                # Amount matches — a duplicate only if it is the same day too
+                same_date = bool(new_date) and normalize_date(row[0]) == new_date
+                if same_date:
+                    logger.info(f"Duplicate: {new_cents / 100:.2f} on {new_date} is already in the sheet")
                     return True
         return False
     except Exception as e:
@@ -294,7 +314,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 photo_line = "\n📝 Manual entry — no photo"
             if check_duplicate(receipt):
                 await query.edit_message_text(
-                    "Duplicate detected! A receipt with the same store, date and amount already exists. Save anyway?",
+                    "Duplicate detected! A receipt with the same date and amount already exists. Save anyway?",
 
 
                     parse_mode="Markdown",
@@ -685,7 +705,7 @@ def save_endpoint():
         }
         force = data.get('force', False)
         if not force and check_duplicate(receipt):
-            return jsonify({'success': False, 'duplicate': True, 'error': 'Duplicate receipt detected — same store, date and amount already exists.'})
+            return jsonify({'success': False, 'duplicate': True, 'error': 'Duplicate receipt detected — same date and amount already exists.'})
         
         image_b64 = data.get('image_base64')
         if image_b64:
