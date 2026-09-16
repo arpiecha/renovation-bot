@@ -425,15 +425,33 @@
       window._projectStartDate = dateStr;
     }
 
+    // Months are calendar months, not 30-day blocks, so a job started on the
+    // 31st is a month older on the 28th of February.
+    function addMonths(date, n) {
+      const d = new Date(date.getTime());
+      const day = d.getDate();
+      d.setDate(1);
+      d.setMonth(d.getMonth() + n);
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(day, lastDay));
+      return d;
+    }
+
     function updateTimer() {
       const start = new Date((window._projectStartDate || DEFAULT_START_DATE) + 'T00:00:00');
       const now = new Date();
-      const diff = Math.floor((now - start) / 1000);
+      if (now < start) { document.getElementById('project-timer').textContent = 'Starts soon'; return; }
+
+      let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+      if (addMonths(start, months) > now) months -= 1;   // the day of the month hasn't come round yet
+
+      const diff = Math.floor((now - addMonths(start, months)) / 1000);
       const days = Math.floor(diff / 86400);
       const hours = Math.floor((diff % 86400) / 3600);
       const mins = Math.floor((diff % 3600) / 60);
       const secs = diff % 60;
       document.getElementById('project-timer').textContent =
+        (months > 0 ? months + 'mo ' : '') +
         days + 'd ' + String(hours).padStart(2,'0') + 'h ' + String(mins).padStart(2,'0') + 'm ' + String(secs).padStart(2,'0') + 's';
     }
 
