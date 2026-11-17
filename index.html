@@ -24,6 +24,24 @@
     .last-updated { font-size: 12px; color: #64748B; }
     button { padding: 8px 16px; font-size: 13px; border: 1px solid #E2E8F0; border-radius: 6px; background: white; color: #0D1B2A; cursor: pointer; font-family: inherit; }
     button:hover { background: #F1F5F9; }
+    /* The deal, not just the construction spend. 1041 Arbor Ln is nearly
+       finished, so the page shows what the whole thing comes to. */
+    .deal { background: white; border-radius: 10px; padding: 1rem 1.15rem; border: 1px solid #E2E8F0; margin-bottom: 1rem; }
+    .deal-title { font-size: 11px; color: #64748B; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 10px; }
+    .deal-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 14px; }
+    .deal-row .lbl { color: #475569; min-width: 0; }
+    .deal-row .val { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .deal-row .val.minus { color: #DC2626; }
+    .deal-row .val.plus { color: #059669; }
+    .deal-total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+                  border-top: 2px solid #0D1B2A; margin-top: 8px; padding-top: 10px; }
+    .deal-total .lbl { font-size: 13px; font-weight: 600; color: #0D1B2A; text-transform: uppercase; letter-spacing: 0.04em; }
+    .deal-total .val { font-size: 26px; font-weight: 700; color: #0D1B2A; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    @media (max-width: 420px) {
+      .deal-total .val { font-size: 22px; }
+      .deal-row { font-size: 13px; }
+    }
+
     .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
     .metric { background: white; border-radius: 8px; padding: 1rem; border: 1px solid #E2E8F0; }
     .metric-label { font-size: 11px; color: #64748B; margin-bottom: 4px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
@@ -168,6 +186,15 @@
     </div>
 
     <div id="tab-overview" class="tab-content active">
+    <div class="deal">
+      <div class="deal-title">Project finances</div>
+      <div class="deal-row"><span class="lbl">Purchase price</span><span class="val" id="d-price">--</span></div>
+      <div class="deal-row"><span class="lbl">Spent on construction</span><span class="val plus" id="d-spent">--</span></div>
+      <div class="deal-row"><span class="lbl">Earnest money paid</span><span class="val minus" id="d-earnest">--</span></div>
+      <div class="deal-row"><span class="lbl">Down payment paid</span><span class="val minus" id="d-down">--</span></div>
+      <div class="deal-total"><span class="lbl">Total final</span><span class="val" id="d-final">--</span></div>
+    </div>
+
     <div class="metrics">
       <div class="metric"><div class="metric-label">Total spent</div><div class="metric-value" id="m-total">--</div></div>
       <div class="metric"><div class="metric-label">Purchases</div><div class="metric-value green" id="m-purchases">--</div></div>
@@ -297,13 +324,39 @@
       }
     }
 
+    // The deal at 1041 Arbor Ln. Fixed figures, for this project only —
+    // the other trackers are construction spend and nothing else.
+    const PURCHASE_PRICE = 570000;
+    const EARNEST_MONEY  = 50000;
+    const DOWN_PAYMENT   = 78000;
+
+    // Six figures want their commas, which '$' + toFixed(2) does not give.
+    function usd(n) {
+      return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US',
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Purchase price plus what construction has cost, less the money already
+    // handed over, so the total is what this house comes to in the end.
+    function updateDeal(totalSpent) {
+      const final = PURCHASE_PRICE + totalSpent - EARNEST_MONEY - DOWN_PAYMENT;
+      document.getElementById('d-price').textContent   = usd(PURCHASE_PRICE);
+      document.getElementById('d-spent').textContent   = '+ ' + usd(totalSpent);
+      document.getElementById('d-earnest').textContent = '- ' + usd(EARNEST_MONEY);
+      document.getElementById('d-down').textContent    = '- ' + usd(DOWN_PAYMENT);
+      document.getElementById('d-final').textContent   = usd(final);
+    }
+
     function updateMetrics(receipts) {
       const purchases = receipts.filter(r => r.type === 'purchase').reduce((s, r) => s + Math.abs(r.amount), 0);
       const returns = receipts.filter(r => r.type === 'return').reduce((s, r) => s + Math.abs(r.amount), 0);
-      document.getElementById('m-total').textContent = '$' + (purchases - returns).toFixed(2);
+      const totalSpent = purchases - returns;
+      document.getElementById('m-total').textContent = '$' + totalSpent.toFixed(2);
       document.getElementById('m-purchases').textContent = '$' + purchases.toFixed(2);
       document.getElementById('m-returns').textContent = '$' + returns.toFixed(2);
       document.getElementById('m-count').textContent = receipts.length;
+      // Never let the deal box keep a stale number if this throws.
+      updateDeal(totalSpent);
     }
 
     function chartUnavailable() {
