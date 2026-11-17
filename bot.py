@@ -168,6 +168,64 @@ def check_duplicate(receipt: dict) -> bool:
         logger.warning(f"Duplicate check failed: {e}")
         return False
 
+def _sheet_ids(sheets_service) -> dict:
+    meta = sheets_service.spreadsheets().get(
+        spreadsheetId=GOOGLE_SHEET_ID, fields="sheets.properties(sheetId,title)"
+    ).execute()
+    return {s["properties"]["title"]: s["properties"]["sheetId"] for s in meta.get("sheets", [])}
+
+
+def read_receipts() -> list:
+    """Every logged receipt, with the sheet row each one sits on."""
+    _, sheets_service = get_google_services()
+    values = sheets_service.spreadsheets().values().get(
+        spreadsheetId=GOOGLE_SHEET_ID, range="Sheet1!A:H"
+    ).execute().get("values", [])
+    out = []
+    for i, row in enumerate(values[1:], start=2):      # row 1 is the header
+        cells = (row + [""] * 8)[:8]
+        try:
+            amount = float(str(cells[4]).replace("$", "").replace(",", "") or 0)
+        except ValueError:
+            amount = 0.0
+        out.append({
+            "row": i, "date": cells[0], "store": cells[1], "category": cells[2],
+            "type": cells[3], "amount": amount, "items": cells[5], "notes": cells[6],
+        })
+    return out
+
+
+def remove_receipt(row_number: int, expect_store=None, expect_amount=None):
+    """Delete one receipt row.
+
+    The store and the amount are checked against the row first, so a stale
+    page cannot delete the wrong receipt after the log has shifted - deleting
+    somebody's $3,200 closets by one row is not a mistake worth risking.
+    """
+    target = next((r for r in read_receipts() if r["row"] == row_number), None)
+    if target is None:
+        raise ValueError("That receipt is no longer there - refresh and try again.")
+    if expect_store is not None and str(expect_store).strip().lower() != target["store"].strip().lower():
+        raise ValueError("That receipt has changed - refresh and try again.")
+    if expect_amount is not None:
+        try:
+            want = float(str(expect_amount).replace("$", "").replace(",", ""))
+        except ValueError:
+            raise ValueError("That amount is not a number.")
+        if round(want * 100) != round(target["amount"] * 100):
+            raise ValueError("That receipt has changed - refresh and try again.")
+    _, sheets_service = get_google_services()
+    sheet_id = _sheet_ids(sheets_service)["Sheet1"]
+    sheets_service.spreadsheets().batchUpdate(
+        spreadsheetId=GOOGLE_SHEET_ID,
+        body={"requests": [{"deleteDimension": {"range": {
+            "sheetId": sheet_id, "dimension": "ROWS",
+            "startIndex": row_number - 1, "endIndex": row_number
+        }}}]}
+    ).execute()
+    return target
+
+
 def append_to_sheet(receipt: dict, drive_link: str):
     _, sheets_service = get_google_services()
     amount = -receipt["total"] if receipt["type"] == "return" else receipt["total"]
@@ -743,6 +801,34 @@ def add_reminder_endpoint():
     except Exception as e:
         logger.error(f"Add reminder endpoint error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@flask_app.route('/receipts', methods=['GET'])
+def receipts_endpoint():
+    """The log with row numbers, so a receipt can be pointed at for deletion."""
+    try:
+        return jsonify({'success': True, 'receipts': read_receipts()})
+    except Exception as e:
+        logger.error(f"Receipts endpoint error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@flask_app.route('/delete-receipt', methods=['POST'])
+def delete_receipt_endpoint():
+    """Remove one receipt. The caller says what it expects to be deleting."""
+    try:
+        data = request.json or {}
+        row = int(data.get('row', 0))
+        if row < 2:
+            return jsonify({'success': False, 'error': 'Which receipt?'}), 400
+        removed = remove_receipt(row, data.get('store'), data.get('amount'))
+        logger.info(f"Deleted receipt row {row}: {removed}")
+        return jsonify({'success': True, 'removed': removed})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 409
+    except Exception as e:
+        logger.error(f"Delete receipt endpoint error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @flask_app.route('/health', methods=['GET'])
 def health():
