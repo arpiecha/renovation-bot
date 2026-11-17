@@ -142,19 +142,26 @@
       <div style="display:flex;align-items:center;gap:12px;">
         <div style="font-size:28px;">🏗️</div>
         <div>
-          <div style="font-size:12px;color:#64748B;" id="start-date-label">Project started <span id="start-date-display">--</span></div>
+          <div style="font-size:12px;color:#64748B;" id="start-date-label">--</div>
           <div id="project-timer" style="font-size:18px;font-weight:600;color:#0D1B2A;">--</div>
+          <div style="font-size:12px;color:#64748B;margin-top:2px;" id="project-span">--</div>
         </div>
       </div>
-      <button onclick="showDatePicker()" style="font-size:12px;padding:6px 12px;border:1px solid #E2E8F0;border-radius:6px;background:white;color:#0D1B2A;cursor:pointer;font-weight:500;white-space:nowrap;">📅 Set Start Date</button>
+      <button onclick="showDatePicker()" style="font-size:12px;padding:6px 12px;border:1px solid #E2E8F0;border-radius:6px;background:white;color:#0D1B2A;cursor:pointer;font-weight:500;white-space:nowrap;">📅 Set Dates</button>
     </div>
     <div id="date-picker-wrap" style="display:none;background:white;border-radius:10px;padding:1rem;border:1px solid #E2E8F0;margin-bottom:1rem;">
-      <div style="font-size:13px;font-weight:500;color:#0D1B2A;margin-bottom:8px;">Set Project Start Date</div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="date" id="start-date-input" style="flex:1;padding:8px 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:14px;font-family:inherit;outline:none;">
-        <button onclick="saveStartDate()" style="padding:8px 16px;background:#0D1B2A;color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Save</button>
+      <div style="font-size:13px;font-weight:500;color:#0D1B2A;margin-bottom:8px;">Project Dates</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+        <label style="flex:1;min-width:130px;font-size:12px;color:#64748B;">Started
+          <input type="date" id="start-date-input" style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:14px;font-family:inherit;outline:none;">
+        </label>
+        <label style="flex:1;min-width:130px;font-size:12px;color:#64748B;">Finished
+          <input type="date" id="end-date-input" style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:14px;font-family:inherit;outline:none;">
+        </label>
+        <button onclick="saveProjectDates()" style="padding:8px 16px;background:#0D1B2A;color:white;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Save</button>
         <button onclick="document.getElementById('date-picker-wrap').style.display='none'" style="padding:8px 12px;border:1px solid #E2E8F0;border-radius:6px;background:white;font-size:13px;cursor:pointer;">Cancel</button>
       </div>
+      <div style="font-size:11px;color:#94A3B8;margin-top:8px;">Clear the finish date to put the running clock back.</div>
     </div>
 
     <!-- Upload Receipt Modal -->
@@ -453,29 +460,46 @@
     }
 
     const DEFAULT_START_DATE = '2026-04-15';
+    // Construction finished on the 17th of November 2026. It is a constant
+    // rather than something saved per browser, so the figure is the same on
+    // the phone and the laptop. Clearing the finish date on the page puts the
+    // running clock back for whoever clears it.
+    const DEFAULT_END_DATE = '2026-11-17';
 
-    async function saveStartDate() {
-      const input = document.getElementById('start-date-input').value;
-      if (!input) return;
+    const prettyDate = iso => new Date(iso + 'T00:00:00')
+      .toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+
+    async function saveProjectDates() {
+      const start = document.getElementById('start-date-input').value;
+      const end = document.getElementById('end-date-input').value;
       try {
-        localStorage.setItem('project_start_date', input);
+        if (start) localStorage.setItem('project_start_date', start);
+        // An empty finish date is a deliberate "not finished", so it is
+        // remembered as empty rather than falling back to the constant.
+        localStorage.setItem('project_end_date', end || '');
       } catch(e) {}
       document.getElementById('date-picker-wrap').style.display = 'none';
-      loadStartDate();
+      loadProjectDates();
       updateTimer();
     }
 
-    async function loadStartDate() {
-      let dateStr = DEFAULT_START_DATE;
+    async function loadProjectDates() {
+      let startStr = DEFAULT_START_DATE;
+      let endStr = DEFAULT_END_DATE;
       try {
-        const saved = localStorage.getItem('project_start_date');
-        if (saved) dateStr = saved;
+        const savedStart = localStorage.getItem('project_start_date');
+        if (savedStart) startStr = savedStart;
+        const savedEnd = localStorage.getItem('project_end_date');
+        if (savedEnd !== null) endStr = savedEnd;      // '' means still running
       } catch(e) {}
-      const d = new Date(dateStr + 'T00:00:00');
-      const formatted = d.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
-      document.getElementById('start-date-display').textContent = formatted;
-      document.getElementById('start-date-input').value = dateStr;
-      window._projectStartDate = dateStr;
+
+      // Only the inputs and the two globals here. The caption, the big
+      // figure and the line under it all belong to updateTimer, so neither
+      // function overwrites what the other just wrote.
+      document.getElementById('start-date-input').value = startStr;
+      document.getElementById('end-date-input').value = endStr || '';
+      window._projectStartDate = startStr;
+      window._projectEndDate = endStr;
     }
 
     // Months are calendar months, not 30-day blocks, so a job started on the
@@ -490,22 +514,50 @@
       return d;
     }
 
+    const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's');
+
+    // Finished, so this is how long the job took, not a clock still running.
+    // With a finish date there are no hours or seconds to show: both ends are
+    // whole days, so months and days is the whole of it.
     function updateTimer() {
+      const timer = document.getElementById('project-timer');
+      const label = document.getElementById('start-date-label');
       const start = new Date((window._projectStartDate || DEFAULT_START_DATE) + 'T00:00:00');
-      const now = new Date();
-      if (now < start) { document.getElementById('project-timer').textContent = 'Starts soon'; return; }
+      const endStr = window._projectEndDate;
+      const finished = !!endStr;
+      const end = finished ? new Date(endStr + 'T00:00:00') : new Date();
 
-      let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-      if (addMonths(start, months) > now) months -= 1;   // the day of the month hasn't come round yet
+      if (end < start) {
+        timer.textContent = 'Check the dates';
+        document.getElementById('project-span').textContent =
+          'The finish date is before the start date.';
+        return;
+      }
 
-      const diff = Math.floor((now - addMonths(start, months)) / 1000);
-      const days = Math.floor(diff / 86400);
-      const hours = Math.floor((diff % 86400) / 3600);
-      const mins = Math.floor((diff % 3600) / 60);
-      const secs = diff % 60;
-      document.getElementById('project-timer').textContent =
+      let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+      if (addMonths(start, months) > end) months -= 1;   // the day of the month hasn't come round yet
+      const rest = Math.floor((end - addMonths(start, months)) / 1000);
+      const days = Math.floor(rest / 86400);
+      const totalDays = Math.floor((end - start) / 86400000);
+
+      if (finished) {
+        label.textContent = 'Took, start to finish';
+        timer.textContent = (months > 0 ? plural(months, 'month') + ', ' : '') + plural(days, 'day');
+        document.getElementById('project-span').textContent =
+          prettyDate(window._projectStartDate) + ' — ' + prettyDate(endStr) +
+          '  ·  ' + plural(totalDays, 'day') + ' in all';
+        return;
+      }
+
+      // Still running: the clock ticks, the way it always did.
+      const hours = Math.floor((rest % 86400) / 3600);
+      const mins = Math.floor((rest % 3600) / 60);
+      const secs = rest % 60;
+      label.textContent = 'Project started ' + prettyDate(window._projectStartDate);
+      timer.textContent =
         (months > 0 ? months + 'mo ' : '') +
         days + 'd ' + String(hours).padStart(2,'0') + 'h ' + String(mins).padStart(2,'0') + 'm ' + String(secs).padStart(2,'0') + 's';
+      document.getElementById('project-span').textContent = '';
     }
 
     function switchTab(tab) {
@@ -849,7 +901,11 @@
       if (input === '15662') {
         document.getElementById('lock-screen').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
-        loadStartDate().then(() => { updateTimer(); setInterval(updateTimer, 1000); });
+        loadProjectDates().then(() => {
+          updateTimer();
+          // A finished project has a fixed answer; only a running one ticks.
+          if (!window._projectEndDate) setInterval(updateTimer, 1000);
+        });
         loadData();
       } else {
         document.getElementById('pwd-error').style.display = 'block';
