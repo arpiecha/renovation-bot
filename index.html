@@ -221,6 +221,7 @@
     <div class="section">
       <div class="section-title">Receipt log</div>
       <div id="table-container"><div class="loading">Loading receipts...</div></div>
+      <button class="download-btn" onclick="downloadReport()">Download Report</button>
       <button class="download-btn" onclick="downloadExcel()">Download Excel</button>
     </div>
     </div><!-- end tab-overview -->
@@ -438,6 +439,173 @@
             <tbody>${rows}</tbody>
           </table>
         </div>`;
+    }
+
+
+    // ---- Offline report ----------------------------------------------------
+    // One HTML file with everything the Overview shows, and nothing it needs
+    // from the network: no CDN, no fonts, no Chart.js. The chart is drawn as
+    // SVG by hand for that reason. Open it from a phone or a laptop with no
+    // signal and it still reads the same, and it prints to PDF cleanly.
+
+    const esc = s => String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    function categoryTotals(receipts) {
+      const cats = {};
+      receipts.filter(r => r.type === 'purchase').forEach(r => {
+        cats[r.category] = (cats[r.category] || 0) + Math.abs(r.amount);
+      });
+      return Object.entries(cats).sort((a, b) => b[1] - a[1]);
+    }
+
+    // The same bars as the dashboard, in SVG so they need no library.
+    function chartSvg(sorted) {
+      if (!sorted.length) return '<p class="muted">No spending yet.</p>';
+      const W = 640, H = 300, padL = 64, padR = 14, padT = 24, padB = 56;
+      const plotW = W - padL - padR, plotH = H - padT - padB;
+      const max = Math.max(...sorted.map(([, v]) => v));
+      const step = Math.pow(10, Math.floor(Math.log10(max || 1)));
+      const top = Math.ceil(max / step) * step || 1;
+      const band = plotW / sorted.length;
+      const barW = Math.min(band * 0.56, 84);
+
+      let grid = '';
+      for (let i = 0; i <= 4; i++) {
+        const v = top * i / 4, y = padT + plotH - (v / top) * plotH;
+        grid += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y +
+                '" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>' +
+                '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="11" fill="#94A3B8">$' +
+                Math.round(v).toLocaleString('en-US') + '</text>';
+      }
+      let bars = '';
+      sorted.forEach(([label, value], i) => {
+        const h = (value / top) * plotH;
+        const x = padL + band * i + (band - barW) / 2;
+        const y = padT + plotH - h;
+        const colour = CAT_COLORS[label] || '#888780';
+        bars += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 1) +
+                '" rx="4" fill="' + colour + '"/>' +
+                '<text x="' + (x + barW / 2) + '" y="' + (y - 7) + '" text-anchor="middle" font-size="11" ' +
+                'font-weight="600" fill="#0D1B2A">' + usd(value) + '</text>' +
+                '<text x="' + (x + barW / 2) + '" y="' + (H - padB + 20) + '" text-anchor="middle" ' +
+                'font-size="12" fill="#64748B">' + esc(label) + '</text>';
+      });
+      return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" ' +
+             'aria-label="Spending by category">' + grid + bars + '</svg>';
+    }
+
+    function buildReport() {
+      const purchases = allReceipts.filter(r => r.type === 'purchase')
+        .reduce((s, r) => s + Math.abs(r.amount), 0);
+      const returns = allReceipts.filter(r => r.type === 'return')
+        .reduce((s, r) => s + Math.abs(r.amount), 0);
+      const spent = purchases - returns;
+      const final = PURCHASE_PRICE + spent - EARNEST_MONEY - DOWN_PAYMENT;
+      const sorted = categoryTotals(allReceipts);
+      const generated = new Date();
+
+      const rows = [...allReceipts].reverse().map(r => {
+        const isReturn = r.type === 'return';
+        const photo = r.photo && r.photo !== 'Photo not saved'
+          ? '<a href="' + esc(r.photo) + '">view</a>' : '';
+        return '<tr><td>' + esc(showDate(r.date)) + '</td><td>' + esc(r.store) + '</td><td>' +
+               esc(r.category) + '</td><td><span class="badge ' +
+               (isReturn ? 'badge-return' : 'badge-purchase') + '">' + esc(r.type) + '</span></td>' +
+               '<td class="' + (isReturn ? 'neg' : 'pos') + '">' + (isReturn ? '-' : '+') +
+               usd(Math.abs(r.amount)) + '</td><td class="items">' + esc(r.items) +
+               '</td><td>' + photo + '</td></tr>';
+      }).join('');
+
+      const legend = sorted.map(([l, v]) =>
+        '<span class="chip"><span class="dot" style="background:' + (CAT_COLORS[l] || '#888780') +
+        '"></span>' + esc(l) + ' ' + usd(v) + '</span>').join('');
+
+      const timer = document.getElementById('project-timer').textContent;
+      const span = document.getElementById('project-span').textContent;
+      const caption = document.getElementById('start-date-label').textContent;
+
+      return '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">' +
+'<meta name="viewport" content="width=device-width, initial-scale=1">' +
+'<title>1041 Arbor Ln — Renovation Report</title><style>' +
+'*{box-sizing:border-box}' +
+'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;' +
+'background:#F8FAFC;color:#0D1B2A;margin:0;padding:1.25rem;line-height:1.45;}' +
+'.wrap{max-width:860px;margin:0 auto;}' +
+'h1{font-size:22px;font-weight:600;margin:0;}' +
+'.sub{font-size:12px;color:#64748B;margin-top:4px;}' +
+'.card{background:#fff;border:1px solid #E2E8F0;border-radius:10px;padding:1rem 1.15rem;margin-bottom:1rem;}' +
+'.card-title{font-size:11px;color:#64748B;font-weight:500;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;}' +
+'.row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:14px;}' +
+'.row .lbl{color:#475569;} .row .val{font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;}' +
+'.val.minus{color:#DC2626;} .val.plus{color:#059669;}' +
+'.total{display:flex;justify-content:space-between;gap:12px;border-top:2px solid #0D1B2A;margin-top:8px;padding-top:10px;}' +
+'.total .lbl{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}' +
+'.total .val{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;}' +
+'.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:1rem;}' +
+'.metric{background:#fff;border:1px solid #E2E8F0;border-radius:8px;padding:1rem;}' +
+'.metric .k{font-size:11px;color:#64748B;font-weight:500;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}' +
+'.metric .v{font-size:22px;font-weight:600;} .metric .v.green{color:#059669;} .metric .v.red{color:#DC2626;}' +
+'.timer{font-size:18px;font-weight:600;}' +
+'.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#475569;margin:0 12px 8px 0;}' +
+'.dot{width:10px;height:10px;border-radius:2px;display:inline-block;}' +
+'table{width:100%;border-collapse:collapse;font-size:13px;}' +
+'th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748B;' +
+'border-bottom:1px solid #E2E8F0;padding:8px 6px;font-weight:600;}' +
+'td{padding:8px 6px;border-bottom:1px solid #F1F5F9;vertical-align:top;}' +
+'td.items{color:#64748B;font-size:12px;} td.pos{color:#059669;font-weight:500;white-space:nowrap;}' +
+'td.neg{color:#DC2626;font-weight:500;white-space:nowrap;}' +
+'.badge{font-size:11px;padding:2px 8px;border-radius:999px;font-weight:500;}' +
+'.badge-purchase{background:#ECFDF5;color:#059669;} .badge-return{background:#FEF2F2;color:#DC2626;}' +
+'.muted{color:#94A3B8;font-size:12px;}' +
+'a{color:#378ADD;}' +
+'@media print{body{background:#fff;padding:0;} .card,.metric{break-inside:avoid;} tr{break-inside:avoid;}}' +
+'</style></head><body><div class="wrap">' +
+'<div class="card"><h1>1041 Arbor Ln</h1>' +
+'<div class="sub">Renovation report · generated ' +
+esc(generated.toLocaleString('en-US', {dateStyle:'long', timeStyle:'short'})) + '</div>' +
+'<div style="margin-top:12px;"><div class="sub">' + esc(caption) + '</div>' +
+'<div class="timer">' + esc(timer) + '</div>' +
+'<div class="sub">' + esc(span) + '</div></div></div>' +
+
+'<div class="card"><div class="card-title">Project finances</div>' +
+'<div class="row"><span class="lbl">Purchase price</span><span class="val">' + usd(PURCHASE_PRICE) + '</span></div>' +
+'<div class="row"><span class="lbl">Spent on construction</span><span class="val plus">+ ' + usd(spent) + '</span></div>' +
+'<div class="row"><span class="lbl">Earnest money paid</span><span class="val minus">- ' + usd(EARNEST_MONEY) + '</span></div>' +
+'<div class="row"><span class="lbl">Down payment paid</span><span class="val minus">- ' + usd(DOWN_PAYMENT) + '</span></div>' +
+'<div class="total"><span class="lbl">Total final</span><span class="val">' + usd(final) + '</span></div></div>' +
+
+'<div class="metrics">' +
+'<div class="metric"><div class="k">Total spent</div><div class="v">' + usd(spent) + '</div></div>' +
+'<div class="metric"><div class="k">Purchases</div><div class="v green">' + usd(purchases) + '</div></div>' +
+'<div class="metric"><div class="k">Returns</div><div class="v red">' + usd(returns) + '</div></div>' +
+'<div class="metric"><div class="k">Receipts</div><div class="v">' + allReceipts.length + '</div></div>' +
+'</div>' +
+
+'<div class="card"><div class="card-title">Spending by category</div>' +
+'<div style="margin-bottom:10px;">' + legend + '</div>' + chartSvg(sorted) + '</div>' +
+
+'<div class="card"><div class="card-title">Receipt log · ' + allReceipts.length + ' receipts</div>' +
+'<table><thead><tr><th>Date</th><th>Store</th><th>Category</th><th>Type</th>' +
+'<th>Amount</th><th>Items</th><th>Photo</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+'<p class="muted" style="margin-top:12px;">Every figure above is fixed as of the date this file was ' +
+'generated. The photo links are the one thing here that needs a connection.</p>' +
+'</div></div></body></html>';
+    }
+
+    function downloadReport() {
+      if (allReceipts.length === 0) { alert('Nothing to export yet — the receipts have not loaded.'); return; }
+      const stamp = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([buildReport()], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '1041-arbor-ln-report-' + stamp + '.html';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
     }
 
     function downloadExcel() {
